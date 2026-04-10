@@ -77,6 +77,68 @@ function getSvgIcon(type, size = 24) {
 }
 
 // Generate a fallback avatar SVG based on channel name
+// =====================================================
+// 🔍 EXTRACT TELEGRAM USERNAME
+// =====================================================
+
+function extractTelegramUsername(input) {
+    if (!input) return null;
+    
+    input = String(input).trim();
+    
+    // إذا كان يبدأ بـ @، نزيله
+    if (input.startsWith('@')) {
+        return input.substring(1);
+    }
+    
+    // استخراجه من رابط t.me
+    const tmeLinkMatch = input.match(/t\.me\/([a-zA-Z0-9_]+)/);
+    if (tmeLinkMatch) {
+        return tmeLinkMatch[1];
+    }
+    
+    // استخراجه من رابط telegram.me
+    const telegramMeMatch = input.match(/telegram\.me\/([a-zA-Z0-9_]+)/);
+    if (telegramMeMatch) {
+        return telegramMeMatch[1];
+    }
+    
+    // إذا كان اسم مستخدم بدون @
+    if (/^[a-zA-Z0-9_]{4,}$/.test(input)) {
+        return input;
+    }
+    
+    return null;
+}
+
+// =====================================================
+// 🎁 CREATE CHANNEL PHOTO HTML
+// =====================================================
+
+function createChannelPhotoHTML(input, fallbackEmoji = '📢', size = '56px') {
+    const username = extractTelegramUsername(input);
+    
+    if (!username) {
+        return `<span class="channel-icon" style="font-size: ${size}">${fallbackEmoji}</span>`;
+    }
+    
+    const photoUrl = `https://t.me/i/userpic/320/${username}.jpg`;
+    
+    return `
+        <img class="channel-photo" 
+             src="${photoUrl}" 
+             alt="${username}"
+             style="width: ${size}; height: ${size}; border-radius: 50%; object-fit: cover; display: inline-block;"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+        <span class="channel-icon-fallback" 
+              style="font-size: ${size}; display: none;">${fallbackEmoji}</span>
+    `;
+}
+
+// =====================================================
+// 📸 CHANNEL INFO FETCHING
+// =====================================================
+
 function getChannelAvatarUrl(channelName) {
     const safeName = String(channelName || 'Channel');
     const initial = safeName[0].toUpperCase();
@@ -508,42 +570,41 @@ function renderTasks() {
 
     if (taskCount) taskCount.textContent = appState.currentTasks.length;
 
-    // جلب معلومات القنوات من Telegram
+    // جلب معلومات القنوات من Telegram API ثم عرضها
     (async () => {
         for (const task of appState.currentTasks) {
             const isCompleted = appState.completedTaskIds.includes(task.id);
             
+            // جلب معلومات القناة الحقيقية من Telegram
+            let channelTitle = task.channelTitle || task.channelUsername || 'قناة';
+            const channelUsername = task.channelUsername;
+            
+            try {
+                const channelInfo = await fetchChannelInfo(channelUsername);
+                if (channelInfo && channelInfo.title) {
+                    channelTitle = channelInfo.title;
+                }
+            } catch (error) {
+                log(`⚠️ Could not fetch channel info for ${channelUsername}: ${error.message}`);
+            }
+            
+            // استخدام createChannelPhotoHTML لجلب صورة القناة من Telegram مباشرة
+            const channelPhotoHTML = createChannelPhotoHTML(channelUsername, '📢', '56px');
+            
             const taskEl = document.createElement('div');
             taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
             
-            // جلب معلومات القناة من Telegram
-            let channelTitle = task.channelTitle || 'قناة';
-            let channelPhotoUrl = task.channelPhotoUrl;
-            
-            try {
-                const channelInfo = await fetchChannelInfo(task.channelUsername);
-                if (channelInfo) {
-                    channelTitle = channelInfo.title;
-                    channelPhotoUrl = channelInfo.photoUrl;
-                }
-            } catch (error) {
-                log(`⚠️ Could not fetch channel info for @${task.channelUsername}: ${error.message}`);
-            }
-            
-            const photoUrl = channelPhotoUrl || getChannelAvatarUrl(channelTitle);
-            
             taskEl.innerHTML = `
                 <div class="task-content">
-                    <img src="${photoUrl}" 
-                         class="task-avatar" alt="${channelTitle}"
-                         onerror="this.src='${getChannelAvatarUrl(channelTitle)}'">
+                    <div class="task-avatar" style="display: flex; align-items: center; justify-content: center;">
+                        ${channelPhotoHTML}
+                    </div>
                     <div class="task-info">
                         <div class="task-title">${channelTitle}</div>
                         <div class="task-channel">
-                            # ${task.channelUsername}
+                            # ${channelUsername}
                         </div>
                     </div>
-                </div>
                     <div class="task-status">
                         ${isCompleted ? '✓' : '→'}
                     </div>
@@ -551,7 +612,7 @@ function renderTasks() {
             `;
             
             if (!isCompleted) {
-                taskEl.addEventListener('click', () => verifyTask(task.id, task.channelUsername));
+                taskEl.addEventListener('click', () => verifyTask(task.id, channelUsername));
             }
             
             tasksContainer.appendChild(taskEl);
