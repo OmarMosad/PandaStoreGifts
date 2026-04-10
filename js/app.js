@@ -172,6 +172,114 @@ async function fetchApi(endpoint, method = 'GET', body = null) {
     }
 }
 
+// =====================================================
+// 📸 CHANNEL INFO FETCHING
+// =====================================================
+
+const channelInfoCache = new Map();
+
+async function fetchChannelInfo(channelUsername) {
+    const username = String(channelUsername || '').toLowerCase().replace('@', '');
+    if (!username) return null;
+    
+    // Check cache first
+    if (channelInfoCache.has(username)) {
+        return channelInfoCache.get(username);
+    }
+    
+    try {
+        const data = await fetchApi('/api/mini-app/channel-info', 'POST', {
+            channelUsername: `@${username}`
+        });
+        
+        if (data.success && data.channel) {
+            const channelInfo = {
+                title: data.channel.title || username,
+                photoUrl: data.channel.photo_url || null,
+                description: data.channel.description || ''
+            };
+            channelInfoCache.set(username, channelInfo);
+            return channelInfo;
+        }
+    } catch (error) {
+        log(`⚠️ Could not fetch channel info for @${username}: ${error.message}`);
+    }
+    
+    return null;
+}
+
+// =====================================================
+// 🎁 GIFT PREVIEW RENDERING
+// =====================================================
+
+function renderGiftPreview(prizeType, prizeValue, prizeLink) {
+    if (!prizeType) return '';
+    
+    const nftMatch = prizeLink ? prizeLink.match(/\/([a-zA-Z0-9_-]+)$/) : null;
+    const nftId = nftMatch ? nftMatch[1] : null;
+    
+    if (prizeType === 'nft' && prizeLink) {
+        // عرض preview مثل Telegram
+        return `
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 12px;
+                padding: 12px;
+                margin-top: 8px;
+                overflow: hidden;
+                border: 1px solid rgba(255,255,255,0.2);
+            ">
+                <a href="${prizeLink}" target="_blank" style="
+                    text-decoration: none;
+                    color: white;
+                    display: block;
+                ">
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 4px;">
+                        Telegram
+                    </div>
+                    <div style="
+                        font-weight: bold;
+                        font-size: 14px;
+                        margin-bottom: 8px;
+                        word-break: break-word;
+                    ">
+                        ${prizeValue || 'NFT Collectible'}
+                    </div>
+                    <div style="
+                        background: rgba(0,0,0,0.2);
+                        padding: 8px 12px;
+                        border-radius: 8px;
+                        text-align: center;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #4dd0e1;
+                    ">
+                        📮 VIEW COLLECTIBLE
+                    </div>
+                </a>
+            </div>
+        `;
+    } else if (prizeType === 'ton') {
+        return `
+            <div style="
+                background: linear-gradient(135deg, #0088cc 0%, #1199dd 100%);
+                border-radius: 12px;
+                padding: 16px;
+                margin-top: 8px;
+                text-align: center;
+                border: 1px solid rgba(255,255,255,0.2);
+            ">
+                <div style="font-size: 32px; font-weight: bold; color: white;">💎 ${prizeValue} TON</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
+                    Ton Blockchain Prize
+                </div>
+            </div>
+        `;
+    }
+    
+    return '';
+}
+
 /* =====================================================
    🌐 TELEGRAM INTEGRATION
    ===================================================== */
@@ -319,15 +427,12 @@ function renderActiveRound() {
     if (prizeText) {
         let prizeDisplay = 'جائزة مميزة';
         
-        if (round.prizeType === 'nft') {
-            // عرض رابط NFT مع صورة
-            if (round.prizeLink) {
-                prizeDisplay = `<a href="${round.prizeLink}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">🎨 NFT ${round.prizeValue || 'NFT'}</a>`;
-                prizeText.innerHTML = prizeDisplay;
-            } else {
-                prizeDisplay = `🎨 NFT ${round.prizeValue || 'NFT'}`;
-                prizeText.textContent = prizeDisplay;
-            }
+        if (round.prizeType === 'nft' && round.prizeLink) {
+            prizeDisplay = `<a href="${round.prizeLink}" target="_blank" style="color: inherit; text-decoration: none; cursor: pointer;">🎨 NFT ${round.prizeValue || 'NFT'}</a>`;
+            prizeText.innerHTML = prizeDisplay;
+        } else if (round.prizeType === 'nft') {
+            prizeDisplay = `🎨 NFT ${round.prizeValue || 'NFT'}`;
+            prizeText.textContent = prizeDisplay;
         } else if (round.prizeType === 'ton') {
             prizeDisplay = `${round.prizeValue || '0'} TON 💎`;
             prizeText.textContent = prizeDisplay;
@@ -336,6 +441,22 @@ function renderActiveRound() {
             prizeText.textContent = prizeDisplay;
         } else {
             prizeText.textContent = prizeDisplay;
+        }
+    }
+    
+    // إضافة gift preview تحت prizeMeta
+    const prizeCard = document.querySelector('.prize-card');
+    if (prizeCard) {
+        // إزالة أي preview قديم
+        const oldPreview = prizeCard.querySelector('.gift-preview');
+        if (oldPreview) oldPreview.remove();
+        
+        const previewHTML = renderGiftPreview(round.prizeType, round.prizeValue, round.prizeLink);
+        if (previewHTML) {
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'gift-preview';
+            previewDiv.innerHTML = previewHTML;
+            prizeCard.appendChild(previewDiv);
         }
     }
 
@@ -387,38 +508,55 @@ function renderTasks() {
 
     if (taskCount) taskCount.textContent = appState.currentTasks.length;
 
-    appState.currentTasks.forEach(task => {
-        const isCompleted = appState.completedTaskIds.includes(task.id);
-        
-        const taskEl = document.createElement('div');
-        taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
-        
-        // Use channel photo if available, otherwise generate fallback avatar
-        const photoUrl = task.channelPhotoUrl || getChannelAvatarUrl(task.channelTitle);
-        
-        taskEl.innerHTML = `
-            <div class="task-content">
-                <img src="${photoUrl}" 
-                     class="task-avatar" alt="${task.channelTitle}"
-                     onerror="this.src='${getChannelAvatarUrl(task.channelTitle)}'">
-                <div class="task-info">
-                    <div class="task-title">${task.channelTitle}</div>
-                    <div class="task-channel">
-                        # ${task.channelUsername}
+    // جلب معلومات القنوات من Telegram
+    (async () => {
+        for (const task of appState.currentTasks) {
+            const isCompleted = appState.completedTaskIds.includes(task.id);
+            
+            const taskEl = document.createElement('div');
+            taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
+            
+            // جلب معلومات القناة من Telegram
+            let channelTitle = task.channelTitle || 'قناة';
+            let channelPhotoUrl = task.channelPhotoUrl;
+            
+            try {
+                const channelInfo = await fetchChannelInfo(task.channelUsername);
+                if (channelInfo) {
+                    channelTitle = channelInfo.title;
+                    channelPhotoUrl = channelInfo.photoUrl;
+                }
+            } catch (error) {
+                log(`⚠️ Could not fetch channel info for @${task.channelUsername}: ${error.message}`);
+            }
+            
+            const photoUrl = channelPhotoUrl || getChannelAvatarUrl(channelTitle);
+            
+            taskEl.innerHTML = `
+                <div class="task-content">
+                    <img src="${photoUrl}" 
+                         class="task-avatar" alt="${channelTitle}"
+                         onerror="this.src='${getChannelAvatarUrl(channelTitle)}'">
+                    <div class="task-info">
+                        <div class="task-title">${channelTitle}</div>
+                        <div class="task-channel">
+                            # ${task.channelUsername}
+                        </div>
                     </div>
                 </div>
-                <div class="task-status">
-                    ${isCompleted ? '✓' : '→'}
+                    <div class="task-status">
+                        ${isCompleted ? '✓' : '→'}
+                    </div>
                 </div>
-            </div>
-        `;
-        
-        if (!isCompleted) {
-            taskEl.addEventListener('click', () => verifyTask(task.id, task.channel_username));
+            `;
+            
+            if (!isCompleted) {
+                taskEl.addEventListener('click', () => verifyTask(task.id, task.channelUsername));
+            }
+            
+            tasksContainer.appendChild(taskEl);
         }
-        
-        tasksContainer.appendChild(taskEl);
-    });
+    })();
 }
 
 function renderReferrals() {
