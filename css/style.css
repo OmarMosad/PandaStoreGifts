@@ -540,14 +540,12 @@ html, body {
     color: var(--text-primary);
 }
 
-.referral-code-box,
 .referral-link-box {
     display: flex;
     gap: var(--spacing-sm);
     margin-bottom: var(--spacing-md);
 }
 
-.referral-code-input,
 .referral-link-input {
     flex: 1;
     background: var(--bg-card);
@@ -560,7 +558,6 @@ html, body {
     outline: none;
 }
 
-.referral-code-input:focus,
 .referral-link-input:focus {
     border-color: var(--primary-color);
 }

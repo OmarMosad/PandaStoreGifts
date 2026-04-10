@@ -641,13 +641,6 @@ function renderReferrals() {
         }
     }
 
-    // تحديث كود الإحالة
-    const referralCode = document.getElementById('referralCode');
-    if (referralCode) {
-        const code = userData.username || `user_${userData.id}`;
-        referralCode.value = code;
-    }
-
     // تحديث رابط الإحالة - استخدام ?start= بدلاً من ?startapp=
     const referralLink = document.getElementById('referralLink');
     if (referralLink) {
@@ -794,12 +787,6 @@ function setupEventListeners() {
         btn.addEventListener('click', switchTab);
     });
 
-    // زر نسخ الكود
-    const copyCodeBtn = document.getElementById('copyCodeBtn');
-    if (copyCodeBtn) {
-        copyCodeBtn.addEventListener('click', copyToClipboard);
-    }
-
     // زر نسخ الرابط
     const copyLinkBtn = document.getElementById('copyLinkBtn');
     if (copyLinkBtn) {
@@ -830,24 +817,6 @@ function switchTab(e) {
     }
 
     appState.currentTab = tabName;
-}
-
-function copyToClipboard() {
-    const input = document.getElementById('referralCode');
-    if (input) {
-        input.select();
-        document.execCommand('copy');
-        
-        const btn = document.getElementById('copyCodeBtn');
-        if (btn) {
-            btn.classList.add('copied');
-            btn.innerHTML = '<i class="fas fa-check"></i>';
-            setTimeout(() => {
-                btn.classList.remove('copied');
-                btn.innerHTML = '<i class="fas fa-copy"></i>';
-            }, 2000);
-        }
-    }
 }
 
 function copyLinkToClipboard() {
