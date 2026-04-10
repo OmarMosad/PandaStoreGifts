@@ -319,20 +319,20 @@ function renderActiveRound() {
     if (prizeText) {
         let prizeDisplay = 'جائزة مميزة';
         
-        if (round.prize_type === 'nft') {
+        if (round.prizeType === 'nft') {
             // عرض رابط NFT مع صورة
-            if (round.prize_link) {
-                prizeDisplay = `<a href="${round.prize_link}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">🎨 NFT ${round.prize_value || 'NFT'}</a>`;
+            if (round.prizeLink) {
+                prizeDisplay = `<a href="${round.prizeLink}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">🎨 NFT ${round.prizeValue || 'NFT'}</a>`;
                 prizeText.innerHTML = prizeDisplay;
             } else {
-                prizeDisplay = `🎨 NFT ${round.prize_value || 'NFT'}`;
+                prizeDisplay = `🎨 NFT ${round.prizeValue || 'NFT'}`;
                 prizeText.textContent = prizeDisplay;
             }
-        } else if (round.prize_type === 'ton') {
-            prizeDisplay = `${round.prize_value || '0'} TON 💎`;
+        } else if (round.prizeType === 'ton') {
+            prizeDisplay = `${round.prizeValue || '0'} TON 💎`;
             prizeText.textContent = prizeDisplay;
-        } else if (round.prize_type === 'custom') {
-            prizeDisplay = round.prize_value || 'جائزة خاصة';
+        } else if (round.prizeType === 'custom') {
+            prizeDisplay = round.prizeValue || 'جائزة خاصة';
             prizeText.textContent = prizeDisplay;
         } else {
             prizeText.textContent = prizeDisplay;
@@ -340,8 +340,8 @@ function renderActiveRound() {
     }
 
     // تحديث عدد المشاركين
-    const currentParticipants = appState.userProgress?.participants_count || 0;
-    const targetParticipants = round.target_participants || 0;
+    const currentParticipants = round.currentParticipants || 0;
+    const targetParticipants = round.targetParticipants || 0;
 
     if (prizeMeta) {
         prizeMeta.innerHTML = `<span class="participants" style="display: flex; align-items: center; gap: 6px;">${getSvgIcon('users', 20)} ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
@@ -394,17 +394,17 @@ function renderTasks() {
         taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
         
         // Use channel photo if available, otherwise generate fallback avatar
-        const photoUrl = task.channel_photo_url || getChannelAvatarUrl(task.channel_title);
+        const photoUrl = task.channelPhotoUrl || getChannelAvatarUrl(task.channelTitle);
         
         taskEl.innerHTML = `
             <div class="task-content">
                 <img src="${photoUrl}" 
-                     class="task-avatar" alt="${task.channel_title}"
-                     onerror="this.src='${getChannelAvatarUrl(task.channel_title)}'">
+                     class="task-avatar" alt="${task.channelTitle}"
+                     onerror="this.src='${getChannelAvatarUrl(task.channelTitle)}'">
                 <div class="task-info">
-                    <div class="task-title">${task.channel_title}</div>
+                    <div class="task-title">${task.channelTitle}</div>
                     <div class="task-channel">
-                        # ${task.channel_username}
+                        # ${task.channelUsername}
                     </div>
                 </div>
                 <div class="task-status">
@@ -423,8 +423,8 @@ function renderTasks() {
 
 function renderReferrals() {
     const progress = appState.userProgress || {};
-    const requiredReferrals = appState.currentRound?.required_referrals || 0;
-    const countedReferrals = progress.counted_referrals || 0;
+    const requiredReferrals = appState.currentRound?.requiredReferrals || 0;
+    const countedReferrals = progress.countedReferrals || 0;
 
     // تحديث عدد الإحالات
     const referralCount = document.getElementById('referralCount');
@@ -476,28 +476,28 @@ function renderEndedRound() {
         const winnerCard = document.getElementById('winnerCard');
         const winnerStatus = document.getElementById('winnerStatus');
 
-        if (winner.winner_user_id && winnerCard) {
+        if (winner.winnerUserId && winnerCard) {
             winnerCard.style.display = 'block';
             const winnerAvatar = document.getElementById('winnerAvatar');
-            const winnerPhotoUrl = winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+            const winnerPhotoUrl = winner.winnerPhotoUrl || getChannelAvatarUrl(winner.winnerFullName || 'الفائز');
             winnerAvatar.src = winnerPhotoUrl;
             winnerAvatar.onerror = () => {
-                winnerAvatar.src = getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+                winnerAvatar.src = getChannelAvatarUrl(winner.winnerFullName || 'الفائز');
             };
             
-            document.getElementById('winnerName').textContent = winner.winner_full_name || 'الفائز';
-            document.getElementById('winnerUsername').textContent = `@${winner.winner_username}`;
+            document.getElementById('winnerName').textContent = winner.winnerFullName || 'الفائز';
+            document.getElementById('winnerUsername').textContent = `@${winner.winnerUsername}`;
             
             let prizeDisplay = 'جائزة';
-            if (winner.prize_type === 'ton') {
-                prizeDisplay = `${winner.prize_value} TON ${getSvgIcon('coin', 20)}`;
-            } else if (winner.prize_value) {
-                prizeDisplay = winner.prize_value;
+            if (winner.prizeType === 'ton') {
+                prizeDisplay = `${winner.prizeValue} TON ${getSvgIcon('coin', 20)}`;
+            } else if (winner.prizeValue) {
+                prizeDisplay = winner.prizeValue;
             }
             document.getElementById('winnerPrize').textContent = prizeDisplay;
         }
 
-        if (winner.winner_user_id === String(userData.id)) {
+        if (winner.winnerUserId === String(userData.id)) {
             if (winnerStatus) {
                 winnerStatus.innerHTML = `<div style="color: var(--success-color); font-weight: 700; display: flex; align-items: center; gap: 8px;">${getSvgIcon('winner', 24)} أنت الفائز!</div>`;
             }
