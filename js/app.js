@@ -76,6 +76,21 @@ function getSvgIcon(type, size = 24) {
     return icons[type] || '';
 }
 
+// Generate a fallback avatar SVG based on channel name
+function getChannelAvatarUrl(channelName) {
+    const initial = (channelName || 'C')[0].toUpperCase();
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+    const hash = channelName.charCodeAt(0) + channelName.length;
+    const bgColor = colors[hash % colors.length];
+    
+    const svg = `<svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+        <rect width="56" height="56" fill="${bgColor}" rx="8"/>
+        <text x="28" y="32" font-size="28" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif">${initial}</text>
+    </svg>`;
+    
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 function log(msg, type = 'info') {
     const timestamp = new Date().toLocaleTimeString('ar-EG');
     const prefix = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '✅';
@@ -292,7 +307,7 @@ function renderActiveRound() {
     // تحديث حالة الجولة
     const roundStatusText = document.getElementById('roundStatusText');
     if (roundStatusText) {
-        const status = round.status === 'active' ? '[نشطة] جولة نشطة' : '[موقوفة] موقوفة مؤقتاً';
+        const status = round.status === 'active' ? '🟢 جولة نشطة' : '🟡 موقوفة مؤقتاً';
         roundStatusText.textContent = status;
     }
 
@@ -306,14 +321,14 @@ function renderActiveRound() {
         if (round.prize_type === 'nft') {
             // عرض رابط NFT مع صورة
             if (round.prize_link) {
-                prizeDisplay = `<a href="${round.prize_link}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">[NFT] ${round.prize_value || 'NFT'}</a>`;
+                prizeDisplay = `<a href="${round.prize_link}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">🎨 NFT ${round.prize_value || 'NFT'}</a>`;
                 prizeText.innerHTML = prizeDisplay;
             } else {
-                prizeDisplay = `[NFT] ${round.prize_value || 'NFT'}`;
+                prizeDisplay = `🎨 NFT ${round.prize_value || 'NFT'}`;
                 prizeText.textContent = prizeDisplay;
             }
         } else if (round.prize_type === 'ton') {
-            prizeDisplay = `${round.prize_value || '0'} TON [COIN]`;
+            prizeDisplay = `${round.prize_value || '0'} TON 💎`;
             prizeText.textContent = prizeDisplay;
         } else if (round.prize_type === 'custom') {
             prizeDisplay = round.prize_value || 'جائزة خاصة';
@@ -376,10 +391,15 @@ function renderTasks() {
         
         const taskEl = document.createElement('div');
         taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
+        
+        // Use channel photo if available, otherwise generate fallback avatar
+        const photoUrl = task.channel_photo_url || getChannelAvatarUrl(task.channel_title);
+        
         taskEl.innerHTML = `
             <div class="task-content">
-                <img src="${task.channel_photo_url || 'https://via.placeholder.com/56'}" 
-                     class="task-avatar" alt="${task.channel_title}">
+                <img src="${photoUrl}" 
+                     class="task-avatar" alt="${task.channel_title}"
+                     onerror="this.src='${getChannelAvatarUrl(task.channel_title)}'">
                 <div class="task-info">
                     <div class="task-title">${task.channel_title}</div>
                     <div class="task-channel">
@@ -457,13 +477,19 @@ function renderEndedRound() {
 
         if (winner.winner_user_id && winnerCard) {
             winnerCard.style.display = 'block';
-            document.getElementById('winnerAvatar').src = winner.winner_photo_url || 'https://via.placeholder.com/80';
+            const winnerAvatar = document.getElementById('winnerAvatar');
+            const winnerPhotoUrl = winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+            winnerAvatar.src = winnerPhotoUrl;
+            winnerAvatar.onerror = () => {
+                winnerAvatar.src = getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+            };
+            
             document.getElementById('winnerName').textContent = winner.winner_full_name || 'الفائز';
             document.getElementById('winnerUsername').textContent = `@${winner.winner_username}`;
             
             let prizeDisplay = 'جائزة';
             if (winner.prize_type === 'ton') {
-                prizeDisplay = `${winner.prize_value} TON [COIN]`;
+                prizeDisplay = `${winner.prize_value} TON ${getSvgIcon('coin', 20)}`;
             } else if (winner.prize_value) {
                 prizeDisplay = winner.prize_value;
             }
@@ -472,11 +498,11 @@ function renderEndedRound() {
 
         if (winner.winner_user_id === String(userData.id)) {
             if (winnerStatus) {
-                winnerStatus.innerHTML = `<div style="color: var(--success-color); font-weight: 700;">[WINNER] أنت الفائز!</div>`;
+                winnerStatus.innerHTML = `<div style="color: var(--success-color); font-weight: 700; display: flex; align-items: center; gap: 8px;">${getSvgIcon('winner', 24)} أنت الفائز!</div>`;
             }
         } else {
             if (winnerStatus) {
-                winnerStatus.innerHTML = `<div style="color: var(--text-secondary);">[جديد] بحث عن جولة جديدة...</div>`;
+                winnerStatus.innerHTML = `<div style="color: var(--text-secondary); display: flex; align-items: center; gap: 8px;"><span>${getSvgIcon('refresh', 20)}</span> بحث عن جولة جديدة...</div>`;
             }
         }
     }
@@ -489,7 +515,7 @@ function renderHistory() {
     const historyContainer = document.getElementById('historyContainer');
     if (!historyContainer || !appState.roundHistory || appState.roundHistory.length === 0) {
         if (historyContainer) {
-            historyContainer.innerHTML = '<p style="color: var(--text-tertiary); text-align: center;">[لا توجد] سحوبات سابقة</p>';
+            historyContainer.innerHTML = `<p style="color: var(--text-tertiary); text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;"><span>${getSvgIcon('refresh', 20)}</span> سحوبات سابقة</p>`;
         }
         return;
     }
@@ -500,7 +526,16 @@ function renderHistory() {
         const historyEl = document.createElement('div');
         historyEl.className = 'history-item';
         
-        const rankIcon = index === 0 ? '[1st]' : index === 1 ? '[2nd]' : index === 2 ? '[3rd]' : (index + 1);
+        let rankIcon = '';
+        if (index === 0) {
+            rankIcon = getSvgIcon('medal1', 28);
+        } else if (index === 1) {
+            rankIcon = getSvgIcon('medal2', 28);
+        } else if (index === 2) {
+            rankIcon = getSvgIcon('medal3', 28);
+        } else {
+            rankIcon = `<span style="font-size: 24px; font-weight: bold;">#${index + 1}</span>`;
+        }
         
         historyEl.innerHTML = `
             <div class="history-rank">${rankIcon}</div>
