@@ -519,19 +519,23 @@ function renderActiveRound() {
     const targetParticipants = round.targetParticipants || 0;
 
     if (prizeMeta) {
-        prizeMeta.innerHTML = `<span class="participants" style="display: flex; align-items: center; gap: 6px;">${getSvgIcon('users', 20)} ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
+        prizeMeta.innerHTML = '';
     }
 
     // تحديث التقدم
     const progressPercent = targetParticipants > 0 ? Math.round((currentParticipants / targetParticipants) * 100) : 0;
     const progressFill = document.getElementById('progressFill');
     const progressPercentEl = document.getElementById('progressPercent');
+    const participantsCountEl = document.getElementById('participantsCount');
 
     if (progressFill) {
         progressFill.style.width = progressPercent + '%';
     }
     if (progressPercentEl) {
         progressPercentEl.textContent = progressPercent + '%';
+    }
+    if (participantsCountEl) {
+        participantsCountEl.textContent = `${currentParticipants} / ${targetParticipants}`;
     }
 
     // رسم المهام
@@ -647,6 +651,13 @@ function renderReferrals() {
         const startParam = userData.username || `ref_${userData.id}`;
         const botUsername = 'PandaStores_bot';
         referralLink.value = `https://t.me/${botUsername}?start=${startParam}`;
+    }
+
+    // تحديث عدد المهام المطلوبة للإحالة
+    const requiredTasksCount = document.getElementById('requiredTasksCount');
+    if (requiredTasksCount) {
+        const requiredTasks = appState.currentRound?.requiredTasks || 0;
+        requiredTasksCount.textContent = requiredTasks;
     }
 }
 

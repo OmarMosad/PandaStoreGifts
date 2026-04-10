@@ -184,7 +184,7 @@ html, body {
     text-align: center;
     overflow: hidden;
     position: relative;
-    border: 1px solid rgba(102, 126, 234, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .prize-card::before {
@@ -279,6 +279,16 @@ html, body {
     background: var(--gradient-primary);
     border-radius: 3px;
     transition: width 0.5s ease;
+}
+
+.participants-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 8px;
+    justify-content: center;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -599,6 +609,25 @@ html, body {
     font-size: 12px;
     color: var(--text-tertiary);
     line-height: 1.4;
+}
+
+.referral-note {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.5;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(102, 126, 234, 0.1);
+    border-left: 2px solid rgba(102, 126, 234, 0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.referral-note i {
+    color: rgba(102, 126, 234, 0.6);
+    font-size: 14px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
