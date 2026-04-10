@@ -58,6 +58,24 @@ document.addEventListener('DOMContentLoaded', async () => {
    🔧 HELPER FUNCTIONS
    ===================================================== */
 
+// SVG Icon Generator
+function getSvgIcon(type, size = 24) {
+    const icons = {
+        gift: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h4v-4h4v-4h-4V7h-4v2H8v4h2v4zm6-9h-2v2h2v-2zm-8 0H6v2h2v-2z" fill="none"/><rect x="8" y="6" width="8" height="12" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/><path d="M12 2V6M8 6V2M16 6V2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        users: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
+        people: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`,
+        check: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>`,
+        coin: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 6v12M8 10c0-1.1 1.8-2 4-2s4 .9 4 2M8 14c0 1.1 1.8 2 4 2s4-.9 4-2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+        medal1: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="8" r="5" fill="#FFD700"/><path d="M12 13v8M8 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="10" y="14" width="4" height="3" fill="currentColor"/></svg>`,
+        medal2: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="8" r="5" fill="#C0C0C0"/><path d="M12 13v8M8 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="10" y="14" width="4" height="3" fill="currentColor"/></svg>`,
+        medal3: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="8" r="5" fill="#CD7F32"/><path d="M12 13v8M8 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="10" y="14" width="4" height="3" fill="currentColor"/></svg>`,
+        winner: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#FFD700"/></svg>`,
+        target: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+        refresh: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display: inline-block; vertical-align: middle;"><path d="M1 4v6h6M23 20v-6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64M3.51 15A9 9 0 0 0 18.36 18.36" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    };
+    return icons[type] || '';
+}
+
 function log(msg, type = 'info') {
     const timestamp = new Date().toLocaleTimeString('ar-EG');
     const prefix = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '✅';
@@ -310,7 +328,7 @@ function renderActiveRound() {
     const targetParticipants = round.target_participants || 0;
 
     if (prizeMeta) {
-        prizeMeta.innerHTML = `<span class="participants">[USERS] ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
+        prizeMeta.innerHTML = `<span class="participants" style="display: flex; align-items: center; gap: 6px;">${getSvgIcon('users', 20)} ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
     }
 
     // تحديث التقدم
@@ -343,7 +361,7 @@ function renderTasks() {
     if (!appState.currentTasks || appState.currentTasks.length === 0) {
         tasksContainer.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon" style="font-size: 48px; margin-bottom: 16px;">[✓]</div>
+                <div class="empty-icon" style="font-size: 48px; margin-bottom: 16px; color: var(--success-color);">${getSvgIcon('check', 48)}</div>
                 <h3>لا توجد مهام حالياً</h3>
             </div>
         `;
@@ -405,7 +423,7 @@ function renderReferrals() {
                 userStatus.textContent = '✅ مؤهل';
                 userStatus.style.color = 'var(--success-color)';
             } else {
-                userStatus.textContent = `[متطلب] ${remaining} متبقي`;
+                userStatus.innerHTML = `<span>${getSvgIcon('target', 18)} ${remaining} متبقي</span>`;
                 userStatus.style.color = 'var(--warning-color)';
             }
         }
