@@ -275,48 +275,46 @@ async function fetchChannelInfo(channelUsername) {
 // =====================================================
 
 function renderGiftPreview(prizeType, prizeValue, prizeLink) {
-    if (!prizeType) return '';
+    if (!prizeType || !prizeLink) return '';
     
-    const nftMatch = prizeLink ? prizeLink.match(/\/([a-zA-Z0-9_-]+)$/) : null;
-    const nftId = nftMatch ? nftMatch[1] : null;
-    
-    if (prizeType === 'nft' && prizeLink) {
-        // عرض preview مثل Telegram
+    if (prizeType === 'nft') {
+        // عرض preview مثل Google Search Preview
+        const urlDisplay = prizeLink.replace(/^https?:\/\/(www\.)?/, '').substring(0, 50);
+        const titleText = prizeValue || 'NFT Collectible';
+        
         return `
             <div style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: var(--bg-card);
                 border-radius: 12px;
-                padding: 12px;
-                margin-top: 8px;
                 overflow: hidden;
-                border: 1px solid rgba(255,255,255,0.2);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                margin-top: 8px;
+                transition: all 0.2s ease;
             ">
                 <a href="${prizeLink}" target="_blank" style="
                     text-decoration: none;
-                    color: white;
+                    color: inherit;
                     display: block;
+                    padding: 12px;
                 ">
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 4px;">
-                        Telegram
+                    <div style="font-size: 11px; color: rgba(102, 126, 234, 0.7); margin-bottom: 6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                        🔗 ${urlDisplay}
                     </div>
                     <div style="
-                        font-weight: bold;
-                        font-size: 14px;
-                        margin-bottom: 8px;
-                        word-break: break-word;
-                    ">
-                        ${prizeValue || 'NFT Collectible'}
-                    </div>
-                    <div style="
-                        background: rgba(0,0,0,0.2);
-                        padding: 8px 12px;
-                        border-radius: 8px;
-                        text-align: center;
-                        font-size: 12px;
                         font-weight: 600;
-                        color: #4dd0e1;
+                        font-size: 15px;
+                        margin-bottom: 6px;
+                        color: #fff;
+                        line-height: 1.3;
                     ">
-                        📮 VIEW COLLECTIBLE
+                        🎨 ${titleText}
+                    </div>
+                    <div style="
+                        font-size: 13px;
+                        color: rgba(255,255,255,0.5);
+                        line-height: 1.4;
+                    ">
+                        NFT Prize • Click to view collectible
                     </div>
                 </a>
             </div>
@@ -324,15 +322,20 @@ function renderGiftPreview(prizeType, prizeValue, prizeLink) {
     } else if (prizeType === 'ton') {
         return `
             <div style="
-                background: linear-gradient(135deg, #0088cc 0%, #1199dd 100%);
+                background: var(--bg-card);
                 border-radius: 12px;
                 padding: 16px;
                 margin-top: 8px;
                 text-align: center;
-                border: 1px solid rgba(255,255,255,0.2);
+                border: 1px solid rgba(0, 136, 204, 0.3);
             ">
-                <div style="font-size: 32px; font-weight: bold; color: white;">💎 ${prizeValue} TON</div>
-                <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
+                <div style="font-size: 12px; color: rgba(0, 136, 204, 0.8); margin-bottom: 8px; font-weight: 600;">
+                    💎 TON REWARD
+                </div>
+                <div style="font-size: 32px; font-weight: bold; color: rgba(0, 136, 204, 1); margin-bottom: 4px;">
+                    ${prizeValue}
+                </div>
+                <div style="font-size: 12px; color: rgba(0, 136, 204, 0.8);">
                     Ton Blockchain Prize
                 </div>
             </div>
@@ -482,28 +485,12 @@ function renderActiveRound() {
         roundStatusText.textContent = status;
     }
 
-    // تحديث الجائزة
+    // تحديث الجائزة - إزالة النص، سيتم عرض الهديه في الـ preview فقط
     const prizeText = document.getElementById('prizeText');
     const prizeMeta = document.getElementById('prizeMeta');
     
     if (prizeText) {
-        let prizeDisplay = 'جائزة مميزة';
-        
-        if (round.prizeType === 'nft' && round.prizeLink) {
-            prizeDisplay = `<a href="${round.prizeLink}" target="_blank" style="color: inherit; text-decoration: none; cursor: pointer;">🎨 NFT ${round.prizeValue || 'NFT'}</a>`;
-            prizeText.innerHTML = prizeDisplay;
-        } else if (round.prizeType === 'nft') {
-            prizeDisplay = `🎨 NFT ${round.prizeValue || 'NFT'}`;
-            prizeText.textContent = prizeDisplay;
-        } else if (round.prizeType === 'ton') {
-            prizeDisplay = `${round.prizeValue || '0'} TON 💎`;
-            prizeText.textContent = prizeDisplay;
-        } else if (round.prizeType === 'custom') {
-            prizeDisplay = round.prizeValue || 'جائزة خاصة';
-            prizeText.textContent = prizeDisplay;
-        } else {
-            prizeText.textContent = prizeDisplay;
-        }
+        prizeText.style.display = 'none';
     }
     
     // إضافة gift preview تحت prizeMeta
@@ -574,22 +561,33 @@ function renderTasks() {
     (async () => {
         for (const task of appState.currentTasks) {
             const isCompleted = appState.completedTaskIds.includes(task.id);
-            
-            // جلب معلومات القناة الحقيقية من Telegram
-            let channelTitle = task.channelTitle || task.channelUsername || 'قناة';
             const channelUsername = task.channelUsername;
+            
+            // جلب معلومات القناة الحقيقية من API (اسم + صورة)
+            let channelTitle = task.channelTitle || channelUsername || 'قناة';
+            let channelPhotoHTML = `<span class="channel-icon" style="font-size: 56px">📢</span>`;
             
             try {
                 const channelInfo = await fetchChannelInfo(channelUsername);
-                if (channelInfo && channelInfo.title) {
-                    channelTitle = channelInfo.title;
+                if (channelInfo) {
+                    channelTitle = channelInfo.title || channelTitle;
+                    
+                    // إذا كان هناك صورة من API، استخدمها
+                    if (channelInfo.photoUrl) {
+                        channelPhotoHTML = `
+                            <img class="channel-photo" 
+                                 src="${channelInfo.photoUrl}" 
+                                 alt="${channelUsername}"
+                                 style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; display: inline-block;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                            <span class="channel-icon-fallback" 
+                                  style="font-size: 56px; display: none;">📢</span>
+                        `;
+                    }
                 }
             } catch (error) {
                 log(`⚠️ Could not fetch channel info for ${channelUsername}: ${error.message}`);
             }
-            
-            // استخدام createChannelPhotoHTML لجلب صورة القناة من Telegram مباشرة
-            const channelPhotoHTML = createChannelPhotoHTML(channelUsername, '📢', '56px');
             
             const taskEl = document.createElement('div');
             taskEl.className = `task-card ${isCompleted ? 'completed' : 'uncompleted'}`;
@@ -903,10 +901,11 @@ function stopAutoRefresh() {
 }
 
 // Stop refresh when app loses focus
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        stopAutoRefresh();
-    } else {
-        startAutoRefresh();
-    }
-});
+// Auto-refresh disabled - manual refresh only
+// document.addEventListener('visibilitychange', () => {
+//     if (document.hidden) {
+//         stopAutoRefresh();
+//     } else {
+//         startAutoRefresh();
+//     }
+// });
