@@ -208,6 +208,37 @@
         </section>
     </main>
 
+    <!-- Modal: القناة - الاشتراك والتحقق -->
+    <div id="channelModal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" id="closeChannelModal">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="modal-header">
+                <div id="channelModalAvatar" class="modal-avatar"></div>
+                <h2 id="channelModalTitle">اشترك في القناة</h2>
+            </div>
+
+            <div class="modal-body">
+                <p id="channelModalDesc" class="modal-description">
+                    يجب أن تشترك في هذه القناة لتابع المهمة
+                </p>
+
+                <div class="modal-actions">
+                    <button id="subscribeChannelBtn" class="btn btn-primary">
+                        <i class="fas fa-star"></i>
+                        <span>اشترك في القناة</span>
+                    </button>
+                    <button id="verifyChannelBtn" class="btn btn-secondary">
+                        <i class="fas fa-check-circle"></i>
+                        <span>تحقق من الاشتراك</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 🔧 JavaScript -->
     <script src="js/app.js"></script>
 </body>

@@ -27,6 +27,13 @@ let userData = {
     photo_url: null
 };
 
+// 🎯 نموذج بيانات الإحالات والمهام المكملة
+let referralData = {
+    currentRoundId: null,
+    referredUsers: [],
+    tasksCompletedByReferrals: {}
+};
+
 let appState = {
     currentRound: null,
     currentTasks: [],
@@ -461,7 +468,7 @@ async function loadData() {
 
         if (response.round.status === 'active' || response.round.status === 'paused') {
             showSection('activeRoundState');
-            renderActiveRound();
+            await renderActiveRound();
         } else {
             showSection('endedRoundState');
             renderEndedRound();
@@ -476,7 +483,7 @@ async function loadData() {
    🎨 RENDERING FUNCTIONS
    ===================================================== */
 
-function renderActiveRound() {
+async function renderActiveRound() {
     const round = appState.currentRound;
     if (!round) return;
 
@@ -541,8 +548,7 @@ function renderActiveRound() {
     // رسم المهام
     renderTasks();
 
-    // رسم الإحالات
-    renderReferrals();
+    await renderReferrals();
 }
 
 function renderTasks() {
@@ -616,44 +622,44 @@ function renderTasks() {
     })();
 }
 
-function renderReferrals() {
+async function renderReferrals() {
     const progress = appState.userProgress || {};
     const requiredReferrals = appState.currentRound?.requiredReferrals || 0;
     const countedReferrals = progress.countedReferrals || 0;
 
-    // تحديث عدد الإحالات
     const referralCount = document.getElementById('referralCount');
     if (referralCount) {
         referralCount.textContent = `${countedReferrals} / ${requiredReferrals}`;
     }
 
-    // تحديث حالة المستخدم - فقط مؤهل إذا تم تحقق العدد المطلوب تماماً
     const userStatus = document.getElementById('userStatus');
     if (userStatus) {
         if (requiredReferrals > 0 && countedReferrals >= requiredReferrals) {
-            userStatus.textContent = '✅ مؤهل';
+            userStatus.textContent = '✅ مؤهل للسحب';
             userStatus.style.color = 'var(--success-color)';
         } else {
             const remaining = Math.max(0, requiredReferrals - countedReferrals);
-            if (remaining === 0 && requiredReferrals === 0) {
-                userStatus.textContent = '✅ مؤهل';
-                userStatus.style.color = 'var(--success-color)';
-            } else {
-                userStatus.innerHTML = `<span>${getSvgIcon('target', 18)} ${remaining} متبقي</span>`;
-                userStatus.style.color = 'var(--warning-color)';
-            }
+            userStatus.innerHTML = `<span>${getSvgIcon('target', 18)} ${remaining} متبقي</span>`;
+            userStatus.style.color = 'var(--warning-color)';
         }
     }
 
-    // تحديث رابط الإحالة - استخدام ?start= بدلاً من ?startapp=
-    const referralLink = document.getElementById('referralLink');
-    if (referralLink) {
-        const startParam = userData.username || `ref_${userData.id}`;
-        const botUsername = 'PandaStores_bot';
-        referralLink.value = `https://t.me/${botUsername}?start=${startParam}`;
+    try {
+        const referralResponse = await fetchApi('/api/rewards/generate-referral', 'POST', {
+            userTelegramId: String(userData.id),
+            username: userData.username || null,
+            roundId: appState.currentRound?.id || 0
+        });
+
+        const referralLink = document.getElementById('referralLink');
+        if (referralLink && referralResponse.success) {
+            referralLink.value = referralResponse.referralUrl;
+            log(`📢 رابط إحالة: ${referralResponse.referralCode}`);
+        }
+    } catch (error) {
+        log('⚠️ خطأ في الحصول على رابط الإحالة: ' + error.message);
     }
 
-    // تحديث عدد المهام المطلوبة للإحالة
     const requiredTasksCount = document.getElementById('requiredTasksCount');
     if (requiredTasksCount) {
         const requiredTasks = appState.currentRound?.requiredTasks || 0;
@@ -751,33 +757,125 @@ function renderHistory() {
 
 async function verifyTask(taskId, channelUsername) {
     try {
-        log(`🔍 التحقق من المهمة: ${taskId}`);
+        log(`🔍 التحقق من المهمة: ${taskId} - القناة: ${channelUsername}`);
         
+        // أولاً: التحقق من الاشتراك في القناة
+        const subscriptionCheck = await checkChannelSubscription(channelUsername);
+        
+        if (!subscriptionCheck.isSubscribed) {
+            showChannelModal(channelUsername, taskId);
+            return;
+        }
+        
+        // إذا كان مشترك، قم بالتحقق
         const response = await fetchApi('/api/rewards/tasks/verify', 'POST', {
             userTelegramId: String(userData.id),
             username: userData.username || null,
             fullName: (userData.first_name || '') + ' ' + (userData.last_name || ''),
             photoUrl: userData.photo_url || null,
-            taskId: taskId
+            taskId: taskId,
+            roundId: appState.currentRound?.id,
+            channelUsername: channelUsername
         });
 
         if (response.success && response.verified) {
             showAlert('✅ تم التحقق من المهمة بنجاح!');
             appState.completedTaskIds.push(taskId);
             renderTasks();
-            renderReferrals();
+            await renderReferrals();
+            
+            // تحديث رابط الإحالة الفريد
+            updateReferralCode();
             
             if (response.roundFinished) {
                 showAlert('🎉 اكتملت الجولة!');
                 await loadData();
             }
+        } else if (response.error === 'NOT_SUBSCRIBED') {
+            showChannelModal(channelUsername, taskId);
         } else {
-            showError('❌ فشل التحقق: ' + (response.error || 'خطأ غير معروف'));
+            showError('❌ فشل التحقق: ' + (response.error || 'يرجى التأكد من الاشتراك في القناة'));
         }
     } catch (error) {
         showError('❌ خطأ في التحقق: ' + error.message);
         log('verifyTask error:', error);
     }
+}
+
+// التحقق من الاشتراك في القناة
+async function checkChannelSubscription(channelUsername) {
+    try {
+        const response = await fetchApi('/api/mini-app/check-subscription', 'POST', {
+            userTelegramId: String(userData.id),
+            channelUsername: channelUsername
+        });
+        return response;
+    } catch (error) {
+        log('Subscription check error:', error);
+        return { isSubscribed: false };
+    }
+}
+
+// عرض مودال الاشتراك في القناة
+function showChannelModal(channelUsername, taskId) {
+    const modal = document.getElementById('channelModal');
+    const title = document.getElementById('channelModalTitle');
+    const desc = document.getElementById('channelModalDesc');
+    const avatar = document.getElementById('channelModalAvatar');
+    
+    if (!modal) return;
+    
+    title.textContent = `اشترك في القناة`;
+    desc.textContent = `يجب عليك الاشتراك في هذه القناة أولاً للتحقق من المهمة`;
+    avatar.innerHTML = '📢';
+    
+    // معالجات الأزرار
+    document.getElementById('subscribeChannelBtn').onclick = () => {
+        const botUsername = 'PandaStores_bot';
+        const url = `https://t.me/${channelUsername}?=${randomId()}`;
+        window.open(url, '_blank');
+    };
+    
+    document.getElementById('verifyChannelBtn').onclick = async () => {
+        modal.classList.add('hidden');
+        await new Promise(r => setTimeout(r, 1000));
+        await verifyTask(taskId, channelUsername);
+    };
+    
+    document.getElementById('closeChannelModal').onclick = () => {
+        modal.classList.add('hidden');
+    };
+    
+    modal.classList.remove('hidden');
+}
+
+// إغلاق المودال عند النقر خارجها
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('channelModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    }
+});
+
+// تحديث رابط الإحالة الفريد
+function updateReferralCode() {
+    const roundId = appState.currentRound?.id || 'default';
+    const referralCode = `${userData.username || userData.id}_${roundId}_${Date.now()}`;
+    
+    const referralLink = document.getElementById('referralLink');
+    if (referralLink) {
+        const botUsername = 'PandaStores_bot';
+        referralLink.value = `https://t.me/${botUsername}?start=${referralCode}`;
+    }
+}
+
+// توليد معرف عشوائي
+function randomId() {
+    return Math.random().toString(36).substring(2, 11);
 }
 
 /* =====================================================
