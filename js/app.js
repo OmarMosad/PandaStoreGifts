@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initTelegramWebApp();
         await loadData();
         setupEventListeners();
-        startAutoRefresh();
+        // Auto-refresh disabled - manual refresh only
         log('✅ تم تهيئة التطبيق بنجاح');
     } catch (error) {
         showError('فشل تهيئة التطبيق: ' + error.message);
@@ -274,7 +274,7 @@ function renderActiveRound() {
     // تحديث حالة الجولة
     const roundStatusText = document.getElementById('roundStatusText');
     if (roundStatusText) {
-        const status = round.status === 'active' ? '🟢 جولة نشطة' : '🟡 موقوفة مؤقتاً';
+        const status = round.status === 'active' ? '[نشطة] جولة نشطة' : '[موقوفة] موقوفة مؤقتاً';
         roundStatusText.textContent = status;
     }
 
@@ -286,14 +286,23 @@ function renderActiveRound() {
         let prizeDisplay = 'جائزة مميزة';
         
         if (round.prize_type === 'nft') {
-            prizeDisplay = `NFT ${round.prize_value || ''}`;
+            // عرض رابط NFT مع صورة
+            if (round.prize_link) {
+                prizeDisplay = `<a href="${round.prize_link}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 2px solid white; cursor: pointer;">[NFT] ${round.prize_value || 'NFT'}</a>`;
+                prizeText.innerHTML = prizeDisplay;
+            } else {
+                prizeDisplay = `[NFT] ${round.prize_value || 'NFT'}`;
+                prizeText.textContent = prizeDisplay;
+            }
         } else if (round.prize_type === 'ton') {
-            prizeDisplay = `${round.prize_value || '0'} TON 💎`;
+            prizeDisplay = `${round.prize_value || '0'} TON [COIN]`;
+            prizeText.textContent = prizeDisplay;
         } else if (round.prize_type === 'custom') {
             prizeDisplay = round.prize_value || 'جائزة خاصة';
+            prizeText.textContent = prizeDisplay;
+        } else {
+            prizeText.textContent = prizeDisplay;
         }
-        
-        prizeText.textContent = prizeDisplay;
     }
 
     // تحديث عدد المشاركين
@@ -301,7 +310,7 @@ function renderActiveRound() {
     const targetParticipants = round.target_participants || 0;
 
     if (prizeMeta) {
-        prizeMeta.innerHTML = `<span class="participants">👥 ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
+        prizeMeta.innerHTML = `<span class="participants">[USERS] ${currentParticipants} / ${targetParticipants} مشارِك</span>`;
     }
 
     // تحديث التقدم
@@ -334,7 +343,7 @@ function renderTasks() {
     if (!appState.currentTasks || appState.currentTasks.length === 0) {
         tasksContainer.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-check-circle empty-icon"></i>
+                <div class="empty-icon" style="font-size: 48px; margin-bottom: 16px;">[✓]</div>
                 <h3>لا توجد مهام حالياً</h3>
             </div>
         `;
@@ -356,11 +365,11 @@ function renderTasks() {
                 <div class="task-info">
                     <div class="task-title">${task.channel_title}</div>
                     <div class="task-channel">
-                        <i class="fas fa-hashtag"></i> ${task.channel_username}
+                        # ${task.channel_username}
                     </div>
                 </div>
                 <div class="task-status">
-                    <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-arrow-right'}"></i>
+                    ${isCompleted ? '✓' : '→'}
                 </div>
             </div>
         `;
@@ -384,15 +393,21 @@ function renderReferrals() {
         referralCount.textContent = `${countedReferrals} / ${requiredReferrals}`;
     }
 
-    // تحديث حالة المستخدم
+    // تحديث حالة المستخدم - فقط مؤهل إذا تم تحقق العدد المطلوب تماماً
     const userStatus = document.getElementById('userStatus');
     if (userStatus) {
-        if (countedReferrals >= requiredReferrals) {
+        if (requiredReferrals > 0 && countedReferrals >= requiredReferrals) {
             userStatus.textContent = '✅ مؤهل';
             userStatus.style.color = 'var(--success-color)';
         } else {
-            userStatus.textContent = `⏳ ${requiredReferrals - countedReferrals} نقص`;
-            userStatus.style.color = 'var(--warning-color)';
+            const remaining = Math.max(0, requiredReferrals - countedReferrals);
+            if (remaining === 0 && requiredReferrals === 0) {
+                userStatus.textContent = '✅ مؤهل';
+                userStatus.style.color = 'var(--success-color)';
+            } else {
+                userStatus.textContent = `[متطلب] ${remaining} متبقي`;
+                userStatus.style.color = 'var(--warning-color)';
+            }
         }
     }
 
@@ -403,12 +418,12 @@ function renderReferrals() {
         referralCode.value = code;
     }
 
-    // تحديث رابط الإحالة
+    // تحديث رابط الإحالة - استخدام ?start= بدلاً من ?startapp=
     const referralLink = document.getElementById('referralLink');
     if (referralLink) {
         const startParam = userData.username || `ref_${userData.id}`;
-        const botUsername = 'PandaStores_bot'; // يجب أن تأخذ من البوت
-        referralLink.value = `https://t.me/${botUsername}?startapp=${startParam}`;
+        const botUsername = 'PandaStores_bot';
+        referralLink.value = `https://t.me/${botUsername}?start=${startParam}`;
     }
 }
 
@@ -430,7 +445,7 @@ function renderEndedRound() {
             
             let prizeDisplay = 'جائزة';
             if (winner.prize_type === 'ton') {
-                prizeDisplay = `${winner.prize_value} TON 💎`;
+                prizeDisplay = `${winner.prize_value} TON [COIN]`;
             } else if (winner.prize_value) {
                 prizeDisplay = winner.prize_value;
             }
@@ -439,11 +454,11 @@ function renderEndedRound() {
 
         if (winner.winner_user_id === String(userData.id)) {
             if (winnerStatus) {
-                winnerStatus.innerHTML = `<div style="color: var(--success-color); font-weight: 700;">🎉 أنت الفائز!</div>`;
+                winnerStatus.innerHTML = `<div style="color: var(--success-color); font-weight: 700;">[WINNER] أنت الفائز!</div>`;
             }
         } else {
             if (winnerStatus) {
-                winnerStatus.innerHTML = `<div style="color: var(--text-secondary);">بحث عن جولة جديدة...</div>`;
+                winnerStatus.innerHTML = `<div style="color: var(--text-secondary);">[جديد] بحث عن جولة جديدة...</div>`;
             }
         }
     }
@@ -456,7 +471,7 @@ function renderHistory() {
     const historyContainer = document.getElementById('historyContainer');
     if (!historyContainer || !appState.roundHistory || appState.roundHistory.length === 0) {
         if (historyContainer) {
-            historyContainer.innerHTML = '<p style="color: var(--text-tertiary); text-align: center;">لا توجد سحوبات سابقة</p>';
+            historyContainer.innerHTML = '<p style="color: var(--text-tertiary); text-align: center;">[لا توجد] سحوبات سابقة</p>';
         }
         return;
     }
@@ -467,7 +482,7 @@ function renderHistory() {
         const historyEl = document.createElement('div');
         historyEl.className = 'history-item';
         
-        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+        const rankIcon = index === 0 ? '[1st]' : index === 1 ? '[2nd]' : index === 2 ? '[3rd]' : (index + 1);
         
         historyEl.innerHTML = `
             <div class="history-rank">${rankIcon}</div>
