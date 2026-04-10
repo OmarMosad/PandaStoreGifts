@@ -755,19 +755,21 @@ function renderHistory() {
    ✔️ TASK VERIFICATION
    ===================================================== */
 
-async function verifyTask(taskId, channelUsername) {
+async function verifyTask(taskId, channelUsername, skipSubscriptionCheck = false) {
     try {
         log(`🔍 التحقق من المهمة: ${taskId} - القناة: ${channelUsername}`);
         
-        // أولاً: التحقق من الاشتراك في القناة
-        const subscriptionCheck = await checkChannelSubscription(channelUsername);
-        
-        if (!subscriptionCheck.isSubscribed) {
-            showChannelModal(channelUsername, taskId);
-            return;
+        // التحقق من الاشتراك في القناة (إلا إذا تم تخطيه)
+        if (!skipSubscriptionCheck) {
+            const subscriptionCheck = await checkChannelSubscription(channelUsername);
+            
+            if (!subscriptionCheck.isSubscribed) {
+                showChannelModal(channelUsername, taskId);
+                return;
+            }
         }
         
-        // إذا كان مشترك، قم بالتحقق
+        // إذا كان مشترك أو تم التحقق من المودال، قم بالتحقق
         const response = await fetchApi('/api/rewards/tasks/verify', 'POST', {
             userTelegramId: String(userData.id),
             username: userData.username || null,
@@ -791,8 +793,12 @@ async function verifyTask(taskId, channelUsername) {
                 showAlert('🎉 اكتملت الجولة!');
                 await loadData();
             }
-        } else if (response.error === 'NOT_SUBSCRIBED') {
-            showChannelModal(channelUsername, taskId);
+        } else if (response.error === 'channel_membership_required' || response.error === 'NOT_SUBSCRIBED') {
+            if (skipSubscriptionCheck) {
+                showError('❌ لم يتم التعرف على الاشتراك بعد. يرجى الانتظار قليلاً ومحاولة التحقق مجدداً');
+            } else {
+                showChannelModal(channelUsername, taskId);
+            }
         } else {
             showError('❌ فشل التحقق: ' + (response.error || 'يرجى التأكد من الاشتراك في القناة'));
         }
@@ -837,8 +843,8 @@ function showChannelModal(channelUsername, taskId) {
     
     document.getElementById('verifyChannelBtn').onclick = async () => {
         modal.classList.add('hidden');
-        await new Promise(r => setTimeout(r, 1000));
-        await verifyTask(taskId, channelUsername);
+        await new Promise(r => setTimeout(r, 500));
+        await verifyTask(taskId, channelUsername, true);
     };
     
     document.getElementById('closeChannelModal').onclick = () => {
