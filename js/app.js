@@ -829,10 +829,9 @@ function showChannelModal(channelUsername, taskId) {
     desc.textContent = `يجب عليك الاشتراك في هذه القناة أولاً للتحقق من المهمة`;
     avatar.innerHTML = '📢';
     
-    // معالجات الأزرار
     document.getElementById('subscribeChannelBtn').onclick = () => {
-        const botUsername = 'PandaStores_bot';
-        const url = `https://t.me/${channelUsername}?=${randomId()}`;
+        const cleanUsername = String(channelUsername || '').trim().replace('@', '');
+        const url = `https://t.me/${cleanUsername}`;
         window.open(url, '_blank');
     };
     
