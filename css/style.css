@@ -230,7 +230,6 @@ html, body {
 
 .prize-emoji {
     font-size: 48px;
-    animation: bounce 2s infinite;
 }
 
 @keyframes bounce {

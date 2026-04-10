@@ -281,42 +281,44 @@ function renderGiftPreview(prizeType, prizeValue, prizeLink) {
     const nftId = nftMatch ? nftMatch[1] : null;
     
     if (prizeType === 'nft' && prizeLink) {
-        // عرض preview مثل Telegram
+        // عرض preview مثل Telegram - مع خلفية داكنة تطابق task card
         return `
             <div style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: var(--bg-card);
                 border-radius: 12px;
                 padding: 12px;
                 margin-top: 8px;
                 overflow: hidden;
-                border: 1px solid rgba(255,255,255,0.2);
+                border: 1px solid rgba(102, 126, 234, 0.4);
             ">
                 <a href="${prizeLink}" target="_blank" style="
                     text-decoration: none;
                     color: white;
                     display: block;
                 ">
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 4px;">
-                        Telegram
+                    <div style="font-size: 12px; color: rgba(102, 126, 234, 0.9); margin-bottom: 4px; font-weight: 600;">
+                        🎨 NFT COLLECTIBLE
                     </div>
                     <div style="
                         font-weight: bold;
                         font-size: 14px;
                         margin-bottom: 8px;
                         word-break: break-word;
+                        color: #fff;
                     ">
                         ${prizeValue || 'NFT Collectible'}
                     </div>
                     <div style="
-                        background: rgba(0,0,0,0.2);
+                        background: rgba(102, 126, 234, 0.15);
                         padding: 8px 12px;
                         border-radius: 8px;
                         text-align: center;
                         font-size: 12px;
                         font-weight: 600;
-                        color: #4dd0e1;
+                        color: rgba(102, 126, 234, 1);
+                        border: 1px solid rgba(102, 126, 234, 0.3);
                     ">
-                        📮 VIEW COLLECTIBLE
+                        View Collectible
                     </div>
                 </a>
             </div>
@@ -324,15 +326,20 @@ function renderGiftPreview(prizeType, prizeValue, prizeLink) {
     } else if (prizeType === 'ton') {
         return `
             <div style="
-                background: linear-gradient(135deg, #0088cc 0%, #1199dd 100%);
+                background: var(--bg-card);
                 border-radius: 12px;
                 padding: 16px;
                 margin-top: 8px;
                 text-align: center;
-                border: 1px solid rgba(255,255,255,0.2);
+                border: 1px solid rgba(0, 136, 204, 0.4);
             ">
-                <div style="font-size: 32px; font-weight: bold; color: white;">💎 ${prizeValue} TON</div>
-                <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
+                <div style="font-size: 12px; color: rgba(0, 136, 204, 0.9); margin-bottom: 8px; font-weight: 600;">
+                    💎 TON REWARD
+                </div>
+                <div style="font-size: 28px; font-weight: bold; color: rgba(0, 136, 204, 1); margin-bottom: 4px;">
+                    ${prizeValue}
+                </div>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.6);">
                     Ton Blockchain Prize
                 </div>
             </div>
@@ -574,14 +581,14 @@ function renderTasks() {
     (async () => {
         for (const task of appState.currentTasks) {
             const isCompleted = appState.completedTaskIds.includes(task.id);
-            
-            // جلب معلومات القناة الحقيقية من Telegram
-            let channelTitle = task.channelTitle || task.channelUsername || 'قناة';
             const channelUsername = task.channelUsername;
             
+            // جلب معلومات القناة الحقيقية من Telegram أولاً قبل عرض الكارت
+            let channelTitle = 'قناة';
             try {
                 const channelInfo = await fetchChannelInfo(channelUsername);
-                if (channelInfo && channelInfo.title) {
+                if (channelInfo && channelInfo.title && channelInfo.title !== channelUsername) {
+                    // استخدام الاسم الحقيقي من Telegram، وليس اليوزرنيم
                     channelTitle = channelInfo.title;
                 }
             } catch (error) {
@@ -602,7 +609,7 @@ function renderTasks() {
                     <div class="task-info">
                         <div class="task-title">${channelTitle}</div>
                         <div class="task-channel">
-                            # ${channelUsername}
+                            @${channelUsername}
                         </div>
                     </div>
                     <div class="task-status">
