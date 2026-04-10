@@ -41,7 +41,9 @@ let appState = {
     roundHistory: [],
     inviterCode: null,
     completedTaskIds: [],
-    currentTab: 'tasks'
+    currentTab: 'tasks',
+    cachedReferralLink: null,
+    cachedReferralRoundId: null
 };
 
 /* =====================================================
@@ -626,6 +628,7 @@ async function renderReferrals() {
     const progress = appState.userProgress || {};
     const requiredReferrals = appState.currentRound?.requiredReferrals || 0;
     const countedReferrals = progress.countedReferrals || 0;
+    const currentRoundId = appState.currentRound?.id || 0;
 
     const referralCount = document.getElementById('referralCount');
     if (referralCount) {
@@ -645,16 +648,29 @@ async function renderReferrals() {
     }
 
     try {
-        const referralResponse = await fetchApi('/api/rewards/generate-referral', 'POST', {
-            userTelegramId: String(userData.id),
-            username: userData.username || null,
-            roundId: appState.currentRound?.id || 0
-        });
+        let referralUrl = null;
+
+        if (appState.cachedReferralRoundId === currentRoundId && appState.cachedReferralLink) {
+            referralUrl = appState.cachedReferralLink;
+            log(`📢 استعمال رابط مخزن للجولة ${currentRoundId}`);
+        } else {
+            const referralResponse = await fetchApi('/api/rewards/generate-referral', 'POST', {
+                userTelegramId: String(userData.id),
+                username: userData.username || null,
+                roundId: currentRoundId
+            });
+
+            if (referralResponse.success) {
+                referralUrl = referralResponse.referralUrl;
+                appState.cachedReferralLink = referralUrl;
+                appState.cachedReferralRoundId = currentRoundId;
+                log(`📢 رابط جديد: ${referralResponse.referralCode}`);
+            }
+        }
 
         const referralLink = document.getElementById('referralLink');
-        if (referralLink && referralResponse.success) {
-            referralLink.value = referralResponse.referralUrl;
-            log(`📢 رابط إحالة: ${referralResponse.referralCode}`);
+        if (referralLink && referralUrl) {
+            referralLink.value = referralUrl;
         }
     } catch (error) {
         log('⚠️ خطأ في الحصول على رابط الإحالة: ' + error.message);
@@ -757,9 +773,8 @@ function renderHistory() {
 
 async function verifyTask(taskId, channelUsername, skipSubscriptionCheck = false) {
     try {
-        log(`🔍 التحقق من المهمة: ${taskId} - القناة: ${channelUsername}`);
+        log(`🔍 التحقق من المهمة: ${taskId}`);
         
-        // التحقق من الاشتراك في القناة (إلا إذا تم تخطيه)
         if (!skipSubscriptionCheck) {
             const subscriptionCheck = await checkChannelSubscription(channelUsername);
             
@@ -767,9 +782,9 @@ async function verifyTask(taskId, channelUsername, skipSubscriptionCheck = false
                 showChannelModal(channelUsername, taskId);
                 return;
             }
+            log(`✅ مبچهر بالفعل في ${channelUsername}`);
         }
         
-        // إذا كان مشترك أو تم التحقق من المودال، قم بالتحقق
         const response = await fetchApi('/api/rewards/tasks/verify', 'POST', {
             userTelegramId: String(userData.id),
             username: userData.username || null,
