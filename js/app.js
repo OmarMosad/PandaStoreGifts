@@ -370,9 +370,13 @@ function initTelegramWebApp() {
         updateUserHeader();
     }
 
-    const hash = new URL(window.location.href).searchParams.get('tgWebAppStartParam');
-    if (hash) {
-        appState.inviterCode = hash;
+    // استخراج بارامتر البداية الذي يحتوي على كود الإحالة
+    const startParam = telegramWebApp?.initDataUnsafe?.start_param || 
+                      new URL(window.location.href).searchParams.get('start') || 
+                      new URL(window.location.href).searchParams.get('tgWebAppStartParam');
+    if (startParam) {
+        appState.inviterCode = startParam;
+        log(`📞 الإحالة المكتشفة: ${startParam}`);
     }
 }
 
@@ -890,11 +894,11 @@ function stopAutoRefresh() {
     }
 }
 
-// Stop refresh when app loses focus
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        stopAutoRefresh();
-    } else {
-        startAutoRefresh();
-    }
-});
+// Auto-refresh completely disabled
+// document.addEventListener('visibilitychange', () => {
+//     if (document.hidden) {
+//         stopAutoRefresh();
+//     } else {
+//         startAutoRefresh();
+//     }
+// });
