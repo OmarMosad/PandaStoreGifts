@@ -251,7 +251,7 @@ async function fetchChannelInfo(channelUsername) {
     
     try {
         const data = await fetchApi('/api/mini-app/channel-info', 'POST', {
-            channel_username: `@${username}`
+            channelUsername: `@${username}`
         });
         
         if (data.success && data.channel) {
@@ -277,42 +277,46 @@ async function fetchChannelInfo(channelUsername) {
 function renderGiftPreview(prizeType, prizeValue, prizeLink) {
     if (!prizeType) return '';
     
+    const nftMatch = prizeLink ? prizeLink.match(/\/([a-zA-Z0-9_-]+)$/) : null;
+    const nftId = nftMatch ? nftMatch[1] : null;
+    
     if (prizeType === 'nft' && prizeLink) {
-        // عرض preview مثل Google Search Preview
-        const urlDisplay = prizeLink.replace(/^https?:\/\/(www\.)?/, '').substring(0, 50);
+        // عرض preview مثل Telegram
         return `
             <div style="
-                background: var(--bg-card);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 12px;
-                overflow: hidden;
-                border: 1px solid rgba(102, 126, 234, 0.3);
+                padding: 12px;
                 margin-top: 8px;
-                transition: all 0.2s ease;
+                overflow: hidden;
+                border: 1px solid rgba(255,255,255,0.2);
             ">
                 <a href="${prizeLink}" target="_blank" style="
                     text-decoration: none;
-                    color: inherit;
+                    color: white;
                     display: block;
-                    padding: 12px;
                 ">
-                    <div style="font-size: 11px; color: rgba(102, 126, 234, 0.7); margin-bottom: 6px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-                        🔗 ${urlDisplay}
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 4px;">
+                        Telegram
                     </div>
                     <div style="
+                        font-weight: bold;
+                        font-size: 14px;
+                        margin-bottom: 8px;
+                        word-break: break-word;
+                    ">
+                        ${prizeValue || 'NFT Collectible'}
+                    </div>
+                    <div style="
+                        background: rgba(0,0,0,0.2);
+                        padding: 8px 12px;
+                        border-radius: 8px;
+                        text-align: center;
+                        font-size: 12px;
                         font-weight: 600;
-                        font-size: 15px;
-                        margin-bottom: 6px;
-                        color: #fff;
-                        line-height: 1.3;
+                        color: #4dd0e1;
                     ">
-                        🎨 ${prizeValue || 'NFT Collectible'}
-                    </div>
-                    <div style="
-                        font-size: 13px;
-                        color: rgba(255,255,255,0.5);
-                        line-height: 1.4;
-                    ">
-                        NFT Prize • Click to view collectible
+                        📮 VIEW COLLECTIBLE
                     </div>
                 </a>
             </div>
@@ -320,20 +324,15 @@ function renderGiftPreview(prizeType, prizeValue, prizeLink) {
     } else if (prizeType === 'ton') {
         return `
             <div style="
-                background: var(--bg-card);
+                background: linear-gradient(135deg, #0088cc 0%, #1199dd 100%);
                 border-radius: 12px;
                 padding: 16px;
                 margin-top: 8px;
                 text-align: center;
-                border: 1px solid rgba(0, 136, 204, 0.3);
+                border: 1px solid rgba(255,255,255,0.2);
             ">
-                <div style="font-size: 12px; color: rgba(0, 136, 204, 0.8); margin-bottom: 8px; font-weight: 600;">
-                    💎 TON REWARD
-                </div>
-                <div style="font-size: 32px; font-weight: bold; color: rgba(0, 136, 204, 1); margin-bottom: 4px;">
-                    ${prizeValue}
-                </div>
-                <div style="font-size: 12px; color: rgba(0, 136, 204, 0.8);">
+                <div style="font-size: 32px; font-weight: bold; color: white;">💎 ${prizeValue} TON</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">
                     Ton Blockchain Prize
                 </div>
             </div>
@@ -575,10 +574,19 @@ function renderTasks() {
     (async () => {
         for (const task of appState.currentTasks) {
             const isCompleted = appState.completedTaskIds.includes(task.id);
+            
+            // جلب معلومات القناة الحقيقية من Telegram
+            let channelTitle = task.channelTitle || task.channelUsername || 'قناة';
             const channelUsername = task.channelUsername;
             
-            // استخدام اسم القناة من API بشكل مباشر
-            let channelTitle = task.channelTitle || channelUsername;
+            try {
+                const channelInfo = await fetchChannelInfo(channelUsername);
+                if (channelInfo && channelInfo.title) {
+                    channelTitle = channelInfo.title;
+                }
+            } catch (error) {
+                log(`⚠️ Could not fetch channel info for ${channelUsername}: ${error.message}`);
+            }
             
             // استخدام createChannelPhotoHTML لجلب صورة القناة من Telegram مباشرة
             const channelPhotoHTML = createChannelPhotoHTML(channelUsername, '📢', '56px');
