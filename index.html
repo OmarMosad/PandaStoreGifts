@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>🎁 متجر الباندا - الجوائز</title>
+    
+    <!-- Google Fonts - Cairo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Lottie Player -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 🔝 Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <h1 class="app-title">
+                <i class="fas fa-gift"></i>
+                متجر الباندا
+            </h1>
+            <p class="app-subtitle">نظام الجوائز والسحوبات</p>
+        </div>
+        <button class="header-btn" id="refreshBtn" title="تحديث">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </header>
+
+    <!-- 📱 Main Container -->
+    <main class="main-container">
+        <!-- Alert Messages -->
+        <div id="alertSuccess" class="alert alert-success"></div>
+        <div id="alertError" class="alert alert-error"></div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-container">
+            <div class="spinner"></div>
+            <p>جارِ تحميل البيانات...</p>
+        </div>
+
+        <!-- System Disabled State -->
+        <div id="systemDisabledState" class="tab-content">
+            <div class="empty-state">
+                <i class="fas fa-lock-alt empty-icon"></i>
+                <h2>النظام معطل حالياً</h2>
+                <p>عذراً، نظام الجوائز غير متاح الآن. حاول لاحقاً.</p>
+            </div>
+        </div>
+
+        <!-- No Round State -->
+        <div id="noRoundState" class="tab-content">
+            <div class="empty-state">
+                <i class="fas fa-hourglass-end empty-icon"></i>
+                <h2>لا توجد جولة نشطة</h2>
+                <p>الانتظر الجولة القادمة 🔔</p>
+            </div>
+        </div>
+
+        <!-- Active Round Section -->
+        <section id="activeRoundState" class="tab-content">
+            <!-- Round Status Card -->
+            <div class="card card-primary">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-circle-notch"></i>
+                    </div>
+                    <div class="card-title">
+                        <h2>الجولة الحالية</h2>
+                        <p id="roundStatus">نشطة 🟢</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">المشاركون</div>
+                        <div class="stat-value">
+                            <span id="currentParticipants">0</span>/<span id="targetParticipants">0</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="participantsProgress"></div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">الجائزة</div>
+                        <div class="stat-value-badge" id="prizeDisplay">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="section-header">
+                <h3><i class="fas fa-tasks"></i> المهام المطلوبة</h3>
+                <span class="section-count" id="taskCount">0</span>
+            </div>
+
+            <div id="tasksContainer" class="tasks-grid"></div>
+
+            <!-- Referrals Section -->
+            <div class="section-header" style="margin-top: 28px;">
+                <h3><i class="fas fa-handshake"></i> الإحالات والتأهيل</h3>
+            </div>
+
+            <div class="card card-secondary">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">إحالات صحيحة</div>
+                        <div class="info-value" id="referralCount">0 / 0</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">حالتك</div>
+                        <div class="info-value" id="userStatus">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Referral Code -->
+            <div class="section-header" style="margin-top: 28px;">
+                <h3><i class="fas fa-link"></i> شارك الكود</h3>
+                <button class="copy-btn" id="copyCodeBtn" title="نسخ">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+
+            <div class="referral-code-box" id="referralCodeBox">
+                <input type="text" id="referralCode" class="referral-code-input" readonly>
+            </div>
+        </section>
+
+        <!-- Ended Round Section -->
+        <section id="endedRoundState" class="tab-content">
+            <!-- Winner Card -->
+            <div class="card card-success">
+                <div class="card-header">
+                    <div class="card-icon winner-icon">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div class="card-title">
+                        <h2>الجائزة الكبرى ✨</h2>
+                        <p>تم انتهاء الجولة</p>
+                    </div>
+                </div>
+
+                <div id="winnerCardContent"></div>
+            </div>
+
+            <!-- Winners History -->
+            <div class="section-header" style="margin-top: 28px;">
+                <h3><i class="fas fa-scroll"></i> سجل الفائزين</h3>
+            </div>
+
+            <div id="winnersHistory" class="winners-list"></div>
+        </section>
+    </main>
+
+    <!-- 🔧 Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>
