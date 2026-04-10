@@ -575,10 +575,10 @@ function renderTasks() {
     (async () => {
         for (const task of appState.currentTasks) {
             const isCompleted = appState.completedTaskIds.includes(task.id);
-            const channelUsername = task.channel_username;
+            const channelUsername = task.channelUsername;
             
             // استخدام اسم القناة من API بشكل مباشر
-            let channelTitle = task.channel_title || channelUsername;
+            let channelTitle = task.channelTitle || channelUsername;
             
             // استخدام createChannelPhotoHTML لجلب صورة القناة من Telegram مباشرة
             const channelPhotoHTML = createChannelPhotoHTML(channelUsername, '📢', '56px');
