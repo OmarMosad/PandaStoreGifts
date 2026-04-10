@@ -78,9 +78,10 @@ function getSvgIcon(type, size = 24) {
 
 // Generate a fallback avatar SVG based on channel name
 function getChannelAvatarUrl(channelName) {
-    const initial = (channelName || 'C')[0].toUpperCase();
+    const safeName = String(channelName || 'Channel');
+    const initial = safeName[0].toUpperCase();
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
-    const hash = channelName.charCodeAt(0) + channelName.length;
+    const hash = (safeName.charCodeAt(0) || 67) + safeName.length; // 67 = 'C'.charCodeAt(0)
     const bgColor = colors[hash % colors.length];
     
     const svg = `<svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
