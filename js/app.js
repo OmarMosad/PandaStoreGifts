@@ -10,7 +10,7 @@
 
 const CONFIG = {
     DEBUG: false,
-    API_BASE_URL: window.location.origin,
+    API_BASE_URL: 'https://api.pandastore.store',
     REFRESH_INTERVAL: 15000, // عدل هنا لتحديث أسرع/أبطأ
     ALERT_DURATION: 3500
 };
