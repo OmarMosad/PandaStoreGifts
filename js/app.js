@@ -60,11 +60,33 @@ let appState = {
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         initTelegramWebApp();
-        await loadData();
+        showVerificationScreen();
         setupEventListeners();
-        // Auto-refresh disabled - manual refresh only
-        log('✅ تم تهيئة التطبيق بنجاح');
+        
+        // ✅ Get initial round info, then verify device, then load full data
+        const roundInfo = await getInitialRoundInfo();
+        
+        if (!roundInfo || !roundInfo.round) {
+            hideVerificationScreen();
+            await loadData();
+            log('✅ تم تهيئة التطبيق بنجاح (بدون جولة نشطة)');
+            return;
+        }
+        
+        // Verify device for this specific round
+        const verified = await verifyDeviceFingerprint(roundInfo.round.id);
+        
+        if (!verified) {
+            showBlockedScreen(roundInfo.blockReason || 'جهازك محظور - تم اكتشاف محاولة تعدد حسابات');
+            log('❌ تحقق من الجهاز فشل', 'error');
+            return;
+        }
+        
+        hideVerificationScreen();
+        await loadData();
+        log('✅ تم تهيئة التطبيق بنجاح - جهاز موثوق');
     } catch (error) {
+        hideVerificationScreen();
         showError('فشل تهيئة التطبيق: ' + error.message);
         log('❌ Init Error: ' + error.message, 'error');
     }
@@ -279,46 +301,50 @@ async function getWebGLFingerprint() {
     }
 }
 
-async function verifyDeviceFingerprint() {
+async function verifyDeviceFingerprint(roundId = 0) {
     try {
-        log('🔍 بدء التحقق من بصمة الجهاز...');
+        log(`🔍 جاري التحقق من بصمة الجهاز للجولة ${roundId}...`);
         
         const fpHash = await generateDeviceFingerprint();
-        if (!fpHash) throw new Error('فشل توليد البصمة');
+        if (!fpHash) {
+            log('❌ فشل توليد بصمة الجهاز', 'error');
+            return false;
+        }
         
-        const roundId = appState.currentRound?.id || 0;
-        
-        // إرسال البصمة للسيرفر للتحقق
+        // إرسال البصمة للسيرفر للتحقق - خاص بالجولة المحددة
         const response = await fetchApi('/api/rewards/fingerprint-check', 'POST', {
             userTelegramId: String(userData.id),
             username: userData.username,
             fingerprint: fpHash,
-            roundId: roundId,
+            roundId: roundId > 0 ? roundId : 0,
             user_agent: navigator.userAgent
         });
         
         if (!response.success) {
-            throw new Error(response.error || 'فشل التحقق من الجهاز');
+            log(`❌ استدعاء API فشل: ${response.error}`, 'error');
+            return false;
         }
         
         if (!response.allowed) {
-            const reason = response.details || response.reason || 'جهاز غير مسموح';
-            showError(`❌ ${reason}`);
-            log(`❌ الجهاز مرفوع: ${reason}`, 'error');
-            throw new Error('device_not_allowed');
+            const reason = response.details || response.reason || 'جهازك محظور';
+            log(`❌ الجهاز مرفوق: ${reason}`, 'error');
+            // Store reason for display
+            appState.blockReason = reason;
+            return false;
         }
         
         if (response.duplicate) {
-            log('⚠️ تحذير: هذا الجهاز قد استُخدم سابقاً', 'warn');
+            log('⚠️ تحذير: هذا الجهاز قد استُخدم سابقاً في جولة أخرى', 'warn');
         } else {
-            log('✅ بصمة الجهاز معتمدة', 'success');
+            log(`✅ بصمة الجهاز معتمدة للجولة ${roundId}`, 'success');
         }
         
         appState.fingerprintVerified = true;
         return true;
     } catch (error) {
         log(`❌ خطأ في التحقق من الجهاز: ${error.message}`, 'error');
-        throw error;
+        appState.blockReason = error.message;
+        return false;
     }
 }
 
@@ -420,6 +446,120 @@ function showAlert(message, type = 'success') {
 
 function showError(message) {
     showAlert(message, 'error');
+}
+
+/* =====================================================
+   🔒 VERIFICATION SCREENS
+   ===================================================== */
+
+function showVerificationScreen() {
+    const screen = document.getElementById('verificationScreen');
+    if (!screen) {
+        const html = `
+            <div id="verificationScreen" style="
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: linear-gradient(135deg, #1a1a1a 0%, #0d0f13 100%);
+                display: flex; flex-direction: column; align-items: center;
+                justify-content: center; z-index: 9999; gap: 30px;
+            ">
+                <div style="text-align: center;">
+                    <div style="font-size: 64px; margin-bottom: 20px; animation: spin 2s linear infinite;">🔍</div>
+                    <h1 style="color: #fff; font-size: 24px; margin-bottom: 10px;">جاري التحقق من جهازك</h1>
+                    <p style="color: #888; font-size: 14px;">الرجاء الانتظار، نتحقق من آمان الجهاز...</p>
+                </div>
+                <div style="
+                    width: 200px; height: 4px; background: #333;
+                    border-radius: 2px; overflow: hidden;
+                ">
+                    <div style="
+                        height: 100%; background: linear-gradient(90deg, #F8B12D, transparent);
+                        animation: loading 1.5s ease-in-out infinite;
+                    "></div>
+                </div>
+            </div>
+            <style>
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes loading {
+                    0% { transform: translateX(-100%); }
+                    50% { transform: translateX(0); }
+                    100% { transform: translateX(100%); }
+                }
+            </style>
+        `;
+        document.body.insertAdjacentHTML('afterbegin', html);
+    }
+    const screen2 = document.getElementById('verificationScreen');
+    if (screen2) screen2.style.display = 'flex';
+}
+
+function hideVerificationScreen() {
+    const screen = document.getElementById('verificationScreen');
+    if (screen) screen.style.display = 'none';
+}
+
+function showBlockedScreen(reason = 'جهازك محظور') {
+    const screen = document.getElementById('blockedScreen');
+    if (!screen) {
+        const html = `
+            <div id="blockedScreen" style="
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: linear-gradient(135deg, #1a1a1a 0%, #0d0f13 100%);
+                display: flex; flex-direction: column; align-items: center;
+                justify-content: center; z-index: 9999; gap: 30px; padding: 20px;
+            ">
+                <div style="text-align: center;">
+                    <div style="font-size: 80px; margin-bottom: 20px;">🚫</div>
+                    <h1 style="color: #e74c3c; font-size: 24px; margin-bottom: 15px; font-weight: bold;">حسابك محظور</h1>
+                    <p id="blockedReason" style="color: #fff; font-size: 14px; line-height: 1.6; max-width: 300px;"></p>
+                </div>
+                <div style="
+                    background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3);
+                    border-radius: 8px; padding: 15px; max-width: 300px; text-align: center;
+                ">
+                    <p style="color: #bbb; font-size: 12px; margin: 0;">
+                        تم اكتشاف محاولة تعدد حسابات أو استخدام محاكاة للجهاز من نفس الشبكة
+                    </p>
+                </div>
+                <button onclick="location.reload()" style="
+                    background: #F8B12D; color: #000; border: none;
+                    padding: 12px 30px; border-radius: 6px; font-weight: bold;
+                    font-size: 14px; cursor: pointer;
+                ">إعادة المحاولة</button>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('afterbegin', html);
+    }
+    const screen2 = document.getElementById('blockedScreen');
+    if (screen2) {
+        screen2.style.display = 'flex';
+        const reasonEl = document.getElementById('blockedReason');
+        if (reasonEl) reasonEl.textContent = reason;
+    }
+}
+
+async function getInitialRoundInfo() {
+    try {
+        log('📋 جاري استخراج معلومات الجولة الأساسية...');
+        const response = await fetchApi('/api/rewards/state', 'POST', {
+            userTelegramId: String(userData.id || 123456),
+            username: userData.username || null,
+            fullName: (userData.first_name || '') + ' ' + (userData.last_name || ''),
+            photoUrl: userData.photo_url || null,
+            inviterCode: appState.inviterCode || null,
+            infoOnly: true
+        });
+        
+        if (response.success && response.round) {
+            return { round: response.round, blockReason: response.blockReason || null };
+        }
+        return null;
+    } catch (error) {
+        log('⚠️ خطأ في استخراج معلومات الجولة: ' + error.message, 'warn');
+        return null;
+    }
 }
 
 async function fetchApi(endpoint, method = 'GET', body = null) {
