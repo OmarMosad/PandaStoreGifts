@@ -1278,9 +1278,6 @@ async function verifyTask(taskId, channelUsername, skipSubscriptionCheck = false
             renderTasks();
             await renderReferrals();
             
-            // تحديث رابط الإحالة الفريد
-            updateReferralCode();
-            
             if (response.roundFinished) {
                 showAlert('🎉 اكتملت الجولة!');
                 await loadData();
