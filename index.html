@@ -215,6 +215,37 @@
         </section>
     </main>
 
+    <!-- Modal: بطاقة الفائز - عرض تفاصيل الفائز -->
+    <div id="winnerDetailsModal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" id="closeWinnerModal">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
+                <img id="winnerDetailsAvatar" src="" alt="Winner" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary-color); margin: 0 auto 20px; display: block; object-fit: cover;">
+                <h2 style="margin: 0 0 8px 0; font-size: 20px; color: var(--text-primary);">الفائز في هذه الجولة ⭐</h2>
+            </div>
+            
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h3 id="winnerDetailsName" style="margin: 10px 0; color: var(--text-primary); font-size: 18px; font-weight: 600;">الفائز</h3>
+                    <p id="winnerDetailsUsername" style="margin: 0; color: var(--text-secondary); font-size: 14px;">@username</p>
+                    <p id="winnerDetailsRound" style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 12px;">رقم السحب #1</p>
+                </div>
+                
+                <div style="background: rgba(248, 177, 45, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(248, 177, 45, 0.2);">
+                    <p style="font-size: 12px; color: var(--text-tertiary); margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;">الجائزة</p>
+                    <p id="winnerDetailsPrize" style="font-size: 22px; font-weight: 700; color: var(--primary-color); margin: 0;">جائزة</p>
+                </div>
+                
+                <button id="winnerPrizeButton" class="btn btn-primary" style="width: 100%; cursor: pointer; display: none;">
+                    <i class="fas fa-external-link-alt"></i> الحصول على الجائزة
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: القناة - الاشتراك والتحقق -->
     <div id="channelModal" class="modal hidden">
         <div class="modal-content">

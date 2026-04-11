@@ -1318,27 +1318,17 @@ async function checkChannelSubscription(channelUsername) {
 function showWinnerDetails(winner) {
     console.log('📋 فتح بطاقة الفائز:', winner);
     
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'winnerDetailsModal_' + Date.now();
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    modal.style.zIndex = '10000';
-    
+    const modalId = 'winnerDetailsModal_' + Date.now();
     const photoUrl = winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
     const prizeLink = winner.prize_link || '';
-    const modalId = modal.id;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = modalId;
     
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px; width: 90%; background: var(--bg-card); border-radius: var(--radius-lg); padding: 25px; position: relative;">
-            <button class="modal-close" onclick="document.getElementById('${modalId}').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; position: absolute; top: 15px; right: 15px; color: var(--text-tertiary);">
+        <div class="modal-content" style="overflow-y: auto; max-height: 90vh;">
+            <button class="modal-close" onclick="document.getElementById('${modalId}').remove()">
                 <i class="fas fa-times"></i>
             </button>
             <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
@@ -1367,14 +1357,67 @@ function showWinnerDetails(winner) {
     
     document.body.appendChild(modal);
     
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.remove();
+    // إضفاء الفئة المرئية
+    setTimeout(() => {
+        modal.style.display = 'flex';
+    }, 10);
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
         }
     });
 }
 
-// عرض مودال الاشتراك في القناة
+// عرض تفاصيل الفائز
+function showWinnerDetails(winner) {
+    console.log('📋 فتح بطاقة الفائز:', winner);
+    
+    const modal = document.getElementById('winnerDetailsModal');
+    if (!modal) {
+        console.error('❌ لم يتم العثور على modal الفائز');
+        return;
+    }
+    
+    // تعبئة بيانات الفائز
+    const photoUrl = winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+    
+    document.getElementById('winnerDetailsAvatar').src = photoUrl;
+    document.getElementById('winnerDetailsAvatar').onerror = () => {
+        document.getElementById('winnerDetailsAvatar').src = getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+    };
+    
+    document.getElementById('winnerDetailsName').textContent = winner.winner_full_name || 'الفائز';
+    document.getElementById('winnerDetailsUsername').textContent = `@${winner.winner_username || 'twitter'}`;
+    document.getElementById('winnerDetailsRound').textContent = `رقم السحب #${winner.round_id}`;
+    document.getElementById('winnerDetailsPrize').textContent = winner.prize_value || 'جائزة';
+    
+    // معالجة زر الجائزة
+    const prizeButton = document.getElementById('winnerPrizeButton');
+    if (winner.prize_link) {
+        prizeButton.style.display = 'block';
+        prizeButton.onclick = () => {
+            window.open(winner.prize_link, '_blank');
+        };
+    } else {
+        prizeButton.style.display = 'none';
+    }
+    
+    // إظهار الـ modal
+    modal.classList.remove('hidden');
+    
+    // إغلاق الـ modal عند النقر على الزر
+    document.getElementById('closeWinnerModal').onclick = () => {
+        modal.classList.add('hidden');
+    };
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    };
+}
 function showChannelModal(channelUsername, taskId) {
     const modal = document.getElementById('channelModal');
     const title = document.getElementById('channelModalTitle');
