@@ -1326,12 +1326,13 @@ function showWinnerDetails(winner) {
                      class="modal-avatar" 
                      alt="Winner"
                      onerror="this.src='${getChannelAvatarUrl(winner.winner_full_name || 'الفائز')}'">
-                <h2>الفائز - رقم السحب #${winner.round_id}</h2>
+                <h2>الفائز في هذه الجولة ⭐</h2>
             </div>
             <div class="modal-body">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h3 style="margin: 10px 0; color: var(--text-primary);">${winner.winner_full_name || 'الفائز'}</h3>
                     <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">@${winner.winner_username || 'twitter'}</p>
+                    <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 12px;">رقم السحب #${winner.round_id}</p>
                 </div>
                 <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <p style="font-size: 12px; color: var(--text-tertiary); margin: 0 0 8px 0;">الجائزة</p>
