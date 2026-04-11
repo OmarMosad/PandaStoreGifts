@@ -11,14 +11,14 @@
     /* Colors */
     --primary-color: rgba(102, 126, 234, 0.2);
     --secondary-color: #00d4ff;
-    --success-color: #2ecc71;
+    --success-color: #F8B12D;
     --error-color: #e74c3c;
     --warning-color: #f39c12;
     
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --gradient-success: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+    --gradient-success: linear-gradient(135deg, #F8B12D 0%, #F5A623 100%);
     
     /* Background */
     --bg-dark: #0d0f13;
@@ -644,7 +644,7 @@ html, body {
 
 .card.card-success {
     border: 2px solid var(--success-color);
-    background: linear-gradient(135deg, rgba(46, 204, 113, 0.1), transparent);
+    background: linear-gradient(135deg, rgba(248, 177, 45, 0.1), transparent);
 }
 
 .card-header {
@@ -666,7 +666,7 @@ html, body {
 }
 
 .card-icon.winner-icon {
-    background: rgba(46, 204, 113, 0.2);
+    background: rgba(248, 177, 45, 0.2);
     color: var(--success-color);
 }
 
@@ -689,7 +689,7 @@ html, body {
     padding: var(--spacing-lg);
     border: 2px dashed var(--success-color);
     border-radius: var(--radius-lg);
-    background: rgba(46, 204, 113, 0.05);
+    background: rgba(248, 177, 45, 0.05);
 }
 
 .winner-avatar {
@@ -699,7 +699,7 @@ html, body {
     object-fit: cover;
     margin: 0 auto var(--spacing-md);
     border: 3px solid var(--success-color);
-    box-shadow: 0 0 16px rgba(46, 204, 113, 0.4);
+    box-shadow: 0 0 16px rgba(248, 177, 45, 0.4);
 }
 
 .winner-card h3 {
@@ -719,7 +719,7 @@ html, body {
     font-weight: 700;
     color: var(--success-color);
     padding: var(--spacing-md);
-    background: rgba(46, 204, 113, 0.1);
+    background: rgba(248, 177, 45, 0.1);
     border-radius: var(--radius-md);
 }
 

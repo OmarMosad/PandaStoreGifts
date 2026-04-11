@@ -11,7 +11,13 @@ const CONFIG = {
     DEBUG: false,
     API_BASE_URL: 'https://api.pandastore.store',
     REFRESH_INTERVAL: 15000,
-    ALERT_DURATION: 3500
+    ALERT_DURATION: 3500,
+    PRIMARY_COLOR: '#F8B12D'
+};
+
+// ✅ بيانات الكابتشا
+const CAPTCHA_CONFIG = {
+    SITE_KEY: 'YOUR_HCAPTCHA_SITE_KEY'
 };
 
 /* =====================================================
@@ -43,7 +49,8 @@ let appState = {
     completedTaskIds: [],
     currentTab: 'tasks',
     cachedReferralLink: null,
-    cachedReferralRoundId: null
+    cachedReferralRoundId: null,
+    deviceFingerprint: null
 };
 
 /* =====================================================
@@ -169,6 +176,210 @@ function log(msg, type = 'info') {
     if (CONFIG.DEBUG || type === 'error') {
         console.log(`[${timestamp}] ${prefix} ${msg}`);
     }
+}
+
+/* =====================================================
+   🔐 DEVICE FINGERPRINTING (مانع التعدد)
+   ===================================================== */
+
+async function generateDeviceFingerprint() {
+    try {
+        const fpData = {
+            // معرف محلي فريد
+            localId: getOrCreateLocalDeviceId(),
+            // معلومات المتصفح
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            platform: navigator.platform,
+            hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+            // معرف الشاشة
+            screenResolution: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+            screenOrientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
+            // معلومات الوقت المنطقة
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            // بيانات Canvas Fingerprint
+            canvasHash: await getCanvasFingerprint(),
+            // بيانات WebGL
+            webglHash: await getWebGLFingerprint()
+        };
+        
+        // دمج البيانات وإنشاء hash
+        const fpString = JSON.stringify(fpData);
+        const fpHash = await hashString(fpString);
+        
+        log(`🔐 تم إنشاء بصمة الجهاز: ${fpHash.substring(0, 16)}...`);
+        appState.deviceFingerprint = {hash: fpHash, data: fpData};
+        return fpHash;
+    } catch (error) {
+        log(`⚠️ خطأ في إنشاء البصمة: ${error.message}`, 'error');
+        return null;
+    }
+}
+
+function getOrCreateLocalDeviceId() {
+    const key = '__device_id_rewards';
+    let id = localStorage.getItem(key);
+    if (!id) {
+        id = generateUUID();
+        localStorage.setItem(key, id);
+    }
+    return id;
+}
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+async function hashString(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getCanvasFingerprint() {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 50;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
+        ctx.fillRect(125, 1, 62, 20);
+        ctx.font = '20px Courier';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = 'rgb(102, 102, 102)';
+        ctx.fillText('🔐FP Canvas', 2, 15);
+        const signature = canvas.toDataURL();
+        return await hashString(signature);
+    } catch (e) {
+        log(`⚠️ Canvas FP failed: ${e.message}`, 'warn');
+        return 'NA';
+    }
+}
+
+async function getWebGLFingerprint() {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return 'NO_WEBGL';
+        
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        const fpString = `${vendor}|${renderer}`;
+        return await hashString(fpString);
+    } catch (e) {
+        log(`⚠️ WebGL FP failed: ${e.message}`, 'warn');
+        return 'NO_WEBGL';
+    }
+}
+
+async function verifyDeviceFingerprint() {
+    try {
+        log('🔍 بدء التحقق من بصمة الجهاز...');
+        
+        const fpHash = await generateDeviceFingerprint();
+        if (!fpHash) throw new Error('فشل توليد البصمة');
+        
+        const roundId = appState.currentRound?.id || 0;
+        
+        // إرسال البصمة للسيرفر للتحقق
+        const response = await fetchApi('/api/rewards/fingerprint-check', 'POST', {
+            userTelegramId: String(userData.id),
+            username: userData.username,
+            fingerprint: fpHash,
+            roundId: roundId,
+            user_agent: navigator.userAgent
+        });
+        
+        if (!response.success) {
+            throw new Error(response.error || 'فشل التحقق من الجهاز');
+        }
+        
+        if (!response.allowed) {
+            const reason = response.details || response.reason || 'جهاز غير مسموح';
+            showError(`❌ ${reason}`);
+            log(`❌ الجهاز مرفوع: ${reason}`, 'error');
+            throw new Error('device_not_allowed');
+        }
+        
+        if (response.duplicate) {
+            log('⚠️ تحذير: هذا الجهاز قد استُخدم سابقاً', 'warn');
+        } else {
+            log('✅ بصمة الجهاز معتمدة', 'success');
+        }
+        
+        appState.fingerprintVerified = true;
+        return true;
+    } catch (error) {
+        log(`❌ خطأ في التحقق من الجهاز: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
+/* =====================================================
+   🤖 CAPTCHA VERIFICATION
+   ===================================================== */
+
+async function showCaptchaVerification() {
+    try {
+        log('🤖 جاري عرض التحقق من الكابتشا...');
+        
+        // إذا تم التحقق بالفعل، تخطّى
+        if (sessionStorage.getItem('captcha_verified')) {
+            log('✅ الكابتشا تم التحقق منه بالفعل');
+            return;
+        }
+        
+        // عرض modal الكابتشا
+        await displayCaptchaModal();
+        
+        sessionStorage.setItem('captcha_verified', 'true');
+        log('✅ تم التحقق من الكابتشا بنجاح');
+    } catch (error) {
+        log(`⚠️ خطأ في الكابتشا: ${error.message}`, 'warn');
+        // لا نرفع الخطأ - الكابتشا اختيارية
+    }
+}
+
+async function displayCaptchaModal() {
+    return new Promise((resolve, reject) => {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); display: flex; align-items: center;
+            justify-content: center; z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: #1a1a1a; padding: 30px; border-radius: 12px;
+                text-align: center; color: #fff; max-width: 400px;
+            ">
+                <h2 style="color: ${CONFIG.PRIMARY_COLOR}">🤖 تحقق أنك لست برنامج</h2>
+                <p>يرجى حل اللغز البسيط أدناه:</p>
+                <div id="captcha-container" style="margin: 20px 0;"></div>
+                <button id="captcha-btn" style="
+                    background: ${CONFIG.PRIMARY_COLOR}; color: #000; border: none;
+                    padding: 10px 30px; border-radius: 6px; cursor: pointer;
+                    font-weight: bold; font-size: 16px;
+                ">تحقق</button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const btn = modal.querySelector('#captcha-btn');
+        btn.addEventListener('click', () => {
+            modal.remove();
+            resolve();
+        });
+    });
 }
 
 function normalizeBotLang(languageCode) {
@@ -380,12 +591,33 @@ function initTelegramWebApp() {
     }
 
     // استخراج بارامتر البداية الذي يحتوي على كود الإحالة
-    const startParam = telegramWebApp?.initDataUnsafe?.start_param || 
-                      new URL(window.location.href).searchParams.get('start') || 
-                      new URL(window.location.href).searchParams.get('tgWebAppStartParam');
+    // ✅ النقطة الحرجة: محاولة استخراج من عدة مصادر، وحفظ في localStorage للاستخدام في جلسات لاحقة
+    let startParam = telegramWebApp?.initDataUnsafe?.start_param || 
+                    new URL(window.location.href).searchParams.get('start') || 
+                    new URL(window.location.href).searchParams.get('tgWebAppStartParam');
+    
+    // ✅ إذا لم نجد في URL، حاول استرجاع من localStorage
+    if (!startParam) {
+        startParam = localStorage.getItem('lastReferralCode');
+        if (startParam) {
+            log(`📍 استخدام كود إحالة محفوظ: ${startParam}`);
+        }
+    }
+    
+    log(`🔍 مصادر بارامتر البداية:`);
+    log(`  - initDataUnsafe.start_param: ${telegramWebApp?.initDataUnsafe?.start_param}`);
+    log(`  - URL ?start: ${new URL(window.location.href).searchParams.get('start')}`);
+    log(`  - URL ?tgWebAppStartParam: ${new URL(window.location.href).searchParams.get('tgWebAppStartParam')}`);
+    log(`  - localStorage: ${localStorage.getItem('lastReferralCode')}`);
+    log(`  - النتيجة النهائية: ${startParam}`);
+    
     if (startParam) {
         appState.inviterCode = startParam;
-        log(`📞 الإحالة المكتشفة: ${startParam}`);
+        // ✅ حفظ الكود في localStorage للاستخدام في جلسات لاحقة
+        localStorage.setItem('lastReferralCode', startParam);
+        log(`📞 الإحالة المكتشفة والمحفوظة: ${startParam}`);
+    } else {
+        log(`⚠️ لم يتم العثور على كود إحالة`);
     }
 }
 
@@ -638,7 +870,7 @@ async function renderReferrals() {
     const userStatus = document.getElementById('userStatus');
     if (userStatus) {
         if (requiredReferrals > 0 && countedReferrals >= requiredReferrals) {
-            userStatus.textContent = '✅ مؤهل للسحب';
+            userStatus.textContent = 'مؤهل للسحب';
             userStatus.style.color = 'var(--success-color)';
         } else {
             const remaining = Math.max(0, requiredReferrals - countedReferrals);
@@ -738,9 +970,19 @@ function renderHistory() {
         return;
     }
 
+    // ✅ Filter: Only show ended rounds with winners (exclude cancelled/empty rounds)
+    const endedRounds = appState.roundHistory.filter(item => 
+        item.status === 'ended' && item.winner_user_id && String(item.winner_user_id).trim() !== ''
+    );
+
     historyContainer.innerHTML = '';
     
-    appState.roundHistory.forEach((item, index) => {
+    if (endedRounds.length === 0) {
+        historyContainer.innerHTML = `<p style="color: var(--text-tertiary); text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;"><span>${getSvgIcon('refresh', 20)}</span> لا توجد سحوبات منتهية بعد</p>`;
+        return;
+    }
+    
+    endedRounds.forEach((item, index) => {
         const historyEl = document.createElement('div');
         historyEl.className = 'history-item';
         
@@ -758,7 +1000,7 @@ function renderHistory() {
         historyEl.innerHTML = `
             <div class="history-rank">${rankIcon}</div>
             <div class="history-info">
-                <div class="history-name">${item.winner_full_name || 'مستخدم'}</div>
+                <div class="history-name">${item.winner_full_name || item.winner_username || 'مستخدم'}</div>
                 <div class="history-prize">${item.prize_value || 'جائزة'}</div>
             </div>
         `;
@@ -796,7 +1038,7 @@ async function verifyTask(taskId, channelUsername, skipSubscriptionCheck = false
         });
 
         if (response.success && response.verified) {
-            showAlert('✅ تم التحقق من المهمة بنجاح!');
+            showAlert('تم التحقق من المهمة بنجاح!');
             appState.completedTaskIds.push(taskId);
             renderTasks();
             await renderReferrals();
