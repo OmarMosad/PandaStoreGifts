@@ -73,12 +73,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // Verify device for this specific round
+        log(`🔐 بدء التحقق من الجهاز للجولة ${roundInfo.round.id}...`);
+        
+        // Verify device for this specific round - with detailed error capture
         const verified = await verifyDeviceFingerprint(roundInfo.round.id);
         
         if (!verified) {
-            showBlockedScreen(roundInfo.blockReason || 'جهازك محظور - تم اكتشاف محاولة تعدد حسابات');
-            log('❌ تحقق من الجهاز فشل', 'error');
+            // Get block reason from appState which was set in verifyDeviceFingerprint
+            const blockReason = appState.blockReason || 'جهازك محظور - تم اكتشاف محاولة تعدد حسابات';
+            log(`⛔ حجب المستخدم: ${blockReason}`, 'error');
+            hideVerificationScreen();
+            // Small delay to ensure verification screen is removed before showing blocked screen
+            await new Promise(resolve => setTimeout(resolve, 100));
+            showBlockedScreen(blockReason);
             return;
         }
         
@@ -501,6 +508,10 @@ function hideVerificationScreen() {
 }
 
 function showBlockedScreen(reason = 'جهازك محظور') {
+    // ✅ Remove verification screen completely
+    const verificationScreen = document.getElementById('verificationScreen');
+    if (verificationScreen) verificationScreen.remove();
+    
     const screen = document.getElementById('blockedScreen');
     if (!screen) {
         const html = `
@@ -508,19 +519,20 @@ function showBlockedScreen(reason = 'جهازك محظور') {
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                 background: linear-gradient(135deg, #1a1a1a 0%, #0d0f13 100%);
                 display: flex; flex-direction: column; align-items: center;
-                justify-content: center; z-index: 9999; gap: 30px; padding: 20px;
+                justify-content: center; z-index: 99999; gap: 30px; padding: 20px;
             ">
                 <div style="text-align: center;">
                     <div style="font-size: 80px; margin-bottom: 20px;">🚫</div>
                     <h1 style="color: #e74c3c; font-size: 24px; margin-bottom: 15px; font-weight: bold;">حسابك محظور</h1>
-                    <p id="blockedReason" style="color: #fff; font-size: 14px; line-height: 1.6; max-width: 300px;"></p>
+                    <p id="blockedReason" style="color: #ff9999; font-size: 16px; line-height: 1.6; max-width: 300px; margin-bottom: 10px; font-weight: 500;"></p>
                 </div>
                 <div style="
                     background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3);
                     border-radius: 8px; padding: 15px; max-width: 300px; text-align: center;
                 ">
-                    <p style="color: #bbb; font-size: 12px; margin: 0;">
-                        تم اكتشاف محاولة تعدد حسابات أو استخدام محاكاة للجهاز من نفس الشبكة
+                    <p style="color: #bbb; font-size: 12px; margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>ℹ️</span>
+                        <span>لا يمكن استخدام جهاز واحد لحسابات متعددة في نفس الجولة</span>
                     </p>
                 </div>
                 <button onclick="location.reload()" style="
@@ -536,7 +548,10 @@ function showBlockedScreen(reason = 'جهازك محظور') {
     if (screen2) {
         screen2.style.display = 'flex';
         const reasonEl = document.getElementById('blockedReason');
-        if (reasonEl) reasonEl.textContent = reason;
+        if (reasonEl) {
+            reasonEl.textContent = reason;
+            console.log('📢 عرض سبب الحجب:', reason);
+        }
     }
 }
 
