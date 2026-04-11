@@ -213,15 +213,22 @@ function log(msg, type = 'info') {
 
 async function generateDeviceFingerprint() {
     try {
+        // ✅ الحصول على Device ID ثابت جداً (مستقل عن نسخة التطبيق/المتصفح)
+        const stableDeviceId = getStableDeviceId();
+        
         const fpData = {
-            // معرف محلي فريد
+            // معرف الجهاز الثابت (استخدام localStorage + معلومات الجهاز الثابتة)
+            stableDeviceId: stableDeviceId,
+            // معرف محلي فريد (backup)
             localId: getOrCreateLocalDeviceId(),
+            // معلومات الجهاز المادية الثابتة جداً
+            hardwareId: getHardwareId(),
             // معلومات المتصفح
             userAgent: navigator.userAgent,
             language: navigator.language,
             platform: navigator.platform,
             hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
-            // معرف الشاشة
+            // معرف الشاشة (ثابت تقريباً)
             screenResolution: `${screen.width}x${screen.height}x${screen.colorDepth}`,
             screenOrientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
             // معلومات الوقت المنطقة
@@ -236,8 +243,8 @@ async function generateDeviceFingerprint() {
         const fpString = JSON.stringify(fpData);
         const fpHash = await hashString(fpString);
         
-        log(`🔐 تم إنشاء بصمة الجهاز: ${fpHash.substring(0, 16)}...`);
-        appState.deviceFingerprint = {hash: fpHash, data: fpData};
+        log(`🔐 تم إنشاء بصمة الجهاز: ${fpHash.substring(0, 16)}... (Device ID: ${stableDeviceId.substring(0, 16)}...)`);
+        appState.deviceFingerprint = {hash: fpHash, data: fpData, stableDeviceId: stableDeviceId};
         return fpHash;
     } catch (error) {
         log(`⚠️ خطأ في إنشاء البصمة: ${error.message}`, 'error');
@@ -253,6 +260,56 @@ function getOrCreateLocalDeviceId() {
         localStorage.setItem(key, id);
     }
     return id;
+}
+
+// ✅ Stable Device ID - يبقى ثابت حتى لو غيرت نسخة التطبيق/المتصفح
+function getStableDeviceId() {
+    const key = '__stable_device_id';
+    let id = localStorage.getItem(key);
+    if (!id) {
+        // إنشاء Device ID ثابت جداً من معلومات الجهاز
+        const hardwareData = {
+            timestamp: new Date().getTime(),
+            random: Math.random(),
+            screen: `${screen.width}${screen.height}${screen.colorDepth}`,
+            platform: navigator.platform,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+        id = generateUUID() + '_' + hashStringSync(JSON.stringify(hardwareData)).substring(0, 16);
+        localStorage.setItem(key, id);
+        log(`🆔 تم إنشاء معرف جهاز ثابت: ${id}`);
+    }
+    return id;
+}
+
+// ✅ Hardware ID - معلومات الجهاز المادية الثابتة
+function getHardwareId() {
+    try {
+        const hwData = {
+            platform: navigator.platform,
+            hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            colorDepth: screen.colorDepth,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            languages: navigator.languages ? navigator.languages.slice(0, 3).join(',') : navigator.language
+        };
+        return hashStringSync(JSON.stringify(hwData));
+    } catch (e) {
+        log(`⚠️ Hardware ID failed: ${e.message}`, 'warn');
+        return 'UNKNOWN_HW';
+    }
+}
+
+// ✅ Synchronous Hash (للاستخدام في البيانات الثابتة)
+function hashStringSync(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
 }
 
 function generateUUID() {
@@ -318,11 +375,14 @@ async function verifyDeviceFingerprint(roundId = 0) {
             return false;
         }
         
+        const stableDeviceId = appState.deviceFingerprint?.stableDeviceId || '';
+        
         // إرسال البصمة للسيرفر للتحقق - خاص بالجولة المحددة
         const response = await fetchApi('/api/rewards/fingerprint-check', 'POST', {
             userTelegramId: String(userData.id),
             username: userData.username,
             fingerprint: fpHash,
+            stableDeviceId: stableDeviceId,
             roundId: roundId > 0 ? roundId : 0,
             user_agent: navigator.userAgent
         });
@@ -835,8 +895,9 @@ async function loadData() {
         }
 
         if (!response.round) {
-            showSection('noRoundState');
+            // ✅ بدلاً من عرض "لا توجد جولات نشطة"، عرض الجولات الماضية
             appState.roundHistory = response.history || [];
+            showSection('endedRoundState');
             renderEndedRound();
             return;
         }
@@ -1074,7 +1135,7 @@ function renderEndedRound() {
     const endedRoundState = document.getElementById('endedRoundState');
     if (!endedRoundState) return;
 
-    // إذا كانت هناك جولة منتهية
+    // ✅ إذا كانت هناك جولة منتهية حالياً
     if (appState.currentRound && appState.currentRound.status === 'ended') {
         const winner = appState.currentRound;
         const winnerCard = document.getElementById('winnerCard');
@@ -1110,9 +1171,15 @@ function renderEndedRound() {
                 winnerStatus.innerHTML = `<div style="color: var(--text-secondary); display: flex; align-items: center; gap: 8px;"><span>${getSvgIcon('refresh', 20)}</span> بحث عن جولة جديدة...</div>`;
             }
         }
+    } else {
+        // ✅ إذا كانت نهاية جولة أو لا توجد جولة نشطة - إخفاء بطاقة الفائز
+        const winnerCard = document.getElementById('winnerCard');
+        if (winnerCard) {
+            winnerCard.style.display = 'none';
+        }
     }
 
-    // رسم السجل السابق
+    // ✅ رسم السجل السابق (الجولات الماضية)
     renderHistory();
 }
 
