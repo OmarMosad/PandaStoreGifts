@@ -175,7 +175,8 @@
 
         <!-- Ended Round Section -->
         <section id="endedRoundState" class="tab-content">
-            <div class="card card-success">
+            <!-- بطاقة الفائز - تظهر فقط عند انتهاء جولة نشطة حالياً -->
+            <div id="prizeCard" class="card card-success" style="display: none;">
                 <div class="card-header">
                     <div class="card-icon winner-icon">
                         <i class="fas fa-crown"></i>
@@ -192,12 +193,18 @@
                     </div>
                 </div>
 
-                <div id="winnerCard" class="winner-card" style="display: none;">
+                <div id="winnerCard" class="winner-card">
                     <img id="winnerAvatar" class="winner-avatar" src="https://via.placeholder.com/80" alt="Winner">
                     <h3 id="winnerName">الفائز</h3>
                     <p id="winnerUsername">@username</p>
                     <div id="winnerPrize" class="winner-prize">--</div>
                 </div>
+            </div>
+
+            <!-- رسالة عدم وجود جولة نشطة -->
+            <div id="noActiveRound" class="card card-info" style="text-align: center; padding: 40px 20px;">
+                <h3 style="color: var(--text-secondary); margin-bottom: 8px;">لا توجد جولة نشطة حالياً</h3>
+                <p style="color: var(--text-tertiary); font-size: 14px; margin: 0;">اطلع على السحوبات السابقة أدناه أو انتظر جولة جديدة</p>
             </div>
 
             <!-- History Section -->

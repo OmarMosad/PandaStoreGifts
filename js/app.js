@@ -1138,14 +1138,15 @@ function renderEndedRound() {
     const endedRoundState = document.getElementById('endedRoundState');
     if (!endedRoundState) return;
 
+    const prizeCard = document.getElementById('prizeCard');
+    const noActiveRound = document.getElementById('noActiveRound');
+
     // ✅ إذا كانت هناك جولة منتهية حالياً
     if (appState.currentRound && appState.currentRound.status === 'ended') {
         const winner = appState.currentRound;
-        const winnerCard = document.getElementById('winnerCard');
         const winnerStatus = document.getElementById('winnerStatus');
 
-        if (winner.winnerUserId && winnerCard) {
-            winnerCard.style.display = 'block';
+        if (winner.winnerUserId) {
             const winnerAvatar = document.getElementById('winnerAvatar');
             const winnerPhotoUrl = winner.winnerPhotoUrl || getChannelAvatarUrl(winner.winnerFullName || 'الفائز');
             winnerAvatar.src = winnerPhotoUrl;
@@ -1174,12 +1175,14 @@ function renderEndedRound() {
                 winnerStatus.innerHTML = `<div style="color: var(--text-secondary); display: flex; align-items: center; gap: 8px;"><span>${getSvgIcon('refresh', 20)}</span> بحث عن جولة جديدة...</div>`;
             }
         }
+        
+        // إظهار بطاقة الفائز وإخفاء رسالة عدم وجود جولة
+        if (prizeCard) prizeCard.style.display = 'block';
+        if (noActiveRound) noActiveRound.style.display = 'none';
     } else {
-        // ✅ إذا كانت نهاية جولة أو لا توجد جولة نشطة - إخفاء بطاقة الفائز
-        const winnerCard = document.getElementById('winnerCard');
-        if (winnerCard) {
-            winnerCard.style.display = 'none';
-        }
+        // ✅ لا توجد جولة نشطة - إخفاء بطاقة الفائز وعرض الرسالة
+        if (prizeCard) prizeCard.style.display = 'none';
+        if (noActiveRound) noActiveRound.style.display = 'block';
     }
 
     // ✅ رسم السجل السابق (الجولات الماضية)
@@ -1313,42 +1316,61 @@ async function checkChannelSubscription(channelUsername) {
 
 // عرض تفاصيل الفائز
 function showWinnerDetails(winner) {
+    console.log('📋 فتح بطاقة الفائز:', winner);
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.style.display = 'block';
+    modal.id = 'winnerDetailsModal_' + Date.now();
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    modal.style.zIndex = '10000';
+    
+    const photoUrl = winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز');
+    const prizeLink = winner.prize_link || '';
+    const modalId = modal.id;
+    
     modal.innerHTML = `
-        <div class="modal-content">
-            <button class="modal-close" onclick="this.parentElement.parentElement.remove()">
+        <div class="modal-content" style="max-width: 400px; width: 90%; background: var(--bg-card); border-radius: var(--radius-lg); padding: 25px; position: relative;">
+            <button class="modal-close" onclick="document.getElementById('${modalId}').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; position: absolute; top: 15px; right: 15px; color: var(--text-tertiary);">
                 <i class="fas fa-times"></i>
             </button>
-            <div class="modal-header">
-                <img src="${winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز')}" 
-                     class="modal-avatar" 
+            <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
+                <img src="${photoUrl}" 
                      alt="Winner"
+                     style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary-color); margin: 0 auto 20px; display: block; object-fit: cover;"
                      onerror="this.src='${getChannelAvatarUrl(winner.winner_full_name || 'الفائز')}'">
-                <h2>الفائز في هذه الجولة ⭐</h2>
+                <h2 style="margin: 0 0 8px 0; font-size: 20px; color: var(--text-primary);">الفائز في هذه الجولة ⭐</h2>
             </div>
-            <div class="modal-body">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h3 style="margin: 10px 0; color: var(--text-primary);">${winner.winner_full_name || 'الفائز'}</h3>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">@${winner.winner_username || 'twitter'}</p>
-                    <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 12px;">رقم السحب #${winner.round_id}</p>
-                </div>
-                <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <p style="font-size: 12px; color: var(--text-tertiary); margin: 0 0 8px 0;">الجائزة</p>
-                    <p style="font-size: 18px; font-weight: 600; color: var(--success-color); margin: 0;">${winner.prize_value || 'جائزة'}</p>
-                </div>
-                ${winner.prize_link ? `
-                    <button class="btn btn-primary" onclick="window.open('${winner.prize_link}', '_blank')">
-                        <i class="fas fa-external-link-alt"></i> الحصول على الجائزة
-                    </button>
-                ` : ''}
+            <div style="text-align: center; margin-bottom: 25px;">
+                <h3 style="margin: 10px 0; color: var(--text-primary); font-size: 18px; font-weight: 600;">${winner.winner_full_name || 'الفائز'}</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">@${winner.winner_username || 'twitter'}</p>
+                <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 12px;">رقم السحب #${winner.round_id}</p>
             </div>
+            <div style="background: rgba(248, 177, 45, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(248, 177, 45, 0.2);">
+                <p style="font-size: 12px; color: var(--text-tertiary); margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;">الجائزة</p>
+                <p style="font-size: 22px; font-weight: 700; color: var(--primary-color); margin: 0;">${winner.prize_value || 'جائزة'}</p>
+            </div>
+            ${prizeLink ? `
+                <button class="btn btn-primary" style="width: 100%; cursor: pointer; padding: 12px; font-size: 14px; font-weight: 600;" onclick="window.open('${prizeLink}', '_blank'); document.getElementById('${modalId}').remove();">
+                    <i class="fas fa-external-link-alt"></i> الحصول على الجائزة
+                </button>
+            ` : ''}
         </div>
     `;
+    
     document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
+    
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.remove();
+        }
     });
 }
 
