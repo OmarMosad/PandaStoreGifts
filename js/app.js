@@ -896,7 +896,10 @@ async function loadData() {
 
         if (!response.round) {
             // ✅ بدلاً من عرض "لا توجد جولات نشطة"، عرض الجولات الماضية
+            appState.currentRound = null;  // مسح الجولة الحالية
             appState.roundHistory = response.history || [];
+            appState.currentTasks = [];
+            appState.userProgress = {};
             showSection('endedRoundState');
             renderEndedRound();
             return;
@@ -1194,7 +1197,7 @@ function renderHistory() {
 
     // ✅ Filter: Only show ended rounds with winners (exclude cancelled/empty rounds)
     const endedRounds = appState.roundHistory.filter(item => 
-        item.status === 'ended' && item.winner_user_id && String(item.winner_user_id).trim() !== ''
+        item.winner_user_id && String(item.winner_user_id).trim() !== ''
     );
 
     historyContainer.innerHTML = '';
@@ -1207,6 +1210,7 @@ function renderHistory() {
     endedRounds.forEach((item, index) => {
         const historyEl = document.createElement('div');
         historyEl.className = 'history-item';
+        historyEl.style.cursor = 'pointer';
         
         let rankIcon = '';
         if (index === 0) {
@@ -1222,10 +1226,16 @@ function renderHistory() {
         historyEl.innerHTML = `
             <div class="history-rank">${rankIcon}</div>
             <div class="history-info">
+                <div class="history-round">رقم السحب #${item.round_id}</div>
                 <div class="history-name">${item.winner_full_name || item.winner_username || 'مستخدم'}</div>
                 <div class="history-prize">${item.prize_value || 'جائزة'}</div>
             </div>
         `;
+        
+        // إضافة معالج نقر لعرض تفاصيل الفائز
+        historyEl.addEventListener('click', () => {
+            showWinnerDetails(item);
+        });
         
         historyContainer.appendChild(historyEl);
     });
@@ -1299,6 +1309,46 @@ async function checkChannelSubscription(channelUsername) {
         log('Subscription check error:', error);
         return { isSubscribed: false };
     }
+}
+
+// عرض تفاصيل الفائز
+function showWinnerDetails(winner) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button class="modal-close" onclick="this.parentElement.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <img src="${winner.winner_photo_url || getChannelAvatarUrl(winner.winner_full_name || 'الفائز')}" 
+                     class="modal-avatar" 
+                     alt="Winner"
+                     onerror="this.src='${getChannelAvatarUrl(winner.winner_full_name || 'الفائز')}'">
+                <h2>الفائز - رقم السحب #${winner.round_id}</h2>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="margin: 10px 0; color: var(--text-primary);">${winner.winner_full_name || 'الفائز'}</h3>
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">@${winner.winner_username || 'twitter'}</p>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-size: 12px; color: var(--text-tertiary); margin: 0 0 8px 0;">الجائزة</p>
+                    <p style="font-size: 18px; font-weight: 600; color: var(--success-color); margin: 0;">${winner.prize_value || 'جائزة'}</p>
+                </div>
+                ${winner.prize_link ? `
+                    <button class="btn btn-primary" onclick="window.open('${winner.prize_link}', '_blank')">
+                        <i class="fas fa-external-link-alt"></i> الحصول على الجائزة
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 }
 
 // عرض مودال الاشتراك في القناة

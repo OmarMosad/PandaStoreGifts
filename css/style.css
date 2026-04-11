@@ -758,6 +758,12 @@ html, body {
     color: var(--text-primary);
 }
 
+.history-round {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+}
+
 .history-prize {
     font-size: 12px;
     color: var(--text-secondary);
